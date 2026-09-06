@@ -104,6 +104,11 @@ const bySection = TIER_ORDER.map((t) => {
 }).join('\n');
 
 const counts = TIER_ORDER.map((t) => [t, data.rules.filter((r) => r.tier === t).length]);
+
+/** Every model named anywhere in the ruleset, for the checker's autocomplete. */
+const MODEL_INDEX = [
+  ...new Set(data.rules.flatMap((r) => [...(r.models32bit ?? []), ...(r.modelsAffected ?? [])])),
+].sort();
 /**
  * Newest AXIS OS version first.
  *
@@ -253,6 +258,26 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
 .modelgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px;
   margin-top:10px;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
 
+/* checker */
+.checker{border:1px solid var(--line);border-radius:10px;background:var(--surface);
+  padding:24px 26px;margin:0 0 32px}
+.checker h2{margin:0 0 8px;font-size:19px}
+.ck-lede{color:var(--muted);max-width:70ch;margin:0 0 18px}
+.ck-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+#ck-model{flex:1;min-width:220px}
+#ck-model,#ck-os{background:var(--bg);border:1px solid var(--line);color:var(--ink);
+  border-radius:7px;padding:11px 14px;font-size:15px;font-family:inherit}
+#ck-model:focus,#ck-os:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.ck-out:empty{display:none}
+.ck-out{display:grid;gap:10px}
+.ck-card{border-left:3px solid var(--line);background:var(--bg);border-radius:0 7px 7px 0;padding:13px 16px}
+.ck-card.bad{border-left-color:var(--a);background:var(--a-bg)}
+.ck-card.warn{border-left-color:var(--b);background:var(--b-bg)}
+.ck-card.ok{border-left-color:var(--c);background:var(--c-bg)}
+.ck-card h4{margin:0 0 4px;font-size:15px}
+.ck-card p{margin:0;font-size:14px;color:var(--muted)}
+.ck-card a{font-size:13px}
+
 /* scanner */
 .scanner{border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin:44px 0;background:var(--surface)}
 .scanner h2{margin:0 0 12px;font-size:18px}
@@ -284,6 +309,7 @@ footer a{color:var(--muted)}
 <header class="top"><div class="wrap">
   <div class="brand">Pre<span>flight</span></div>
   <nav>
+    <a href="#check">Check a model</a>
     <a href="#tiers">Rules</a>
     <a href="#scanner">Scanner</a>
     <a href="#open">Open questions</a>
@@ -311,6 +337,29 @@ footer a{color:var(--muted)}
     <div class="stat"><b>${data.rules.find((r) => r.id === 'A5').models32bit.length}</b>32-bit models</div>
     <div class="stat"><b>${esc(data.rulesetVersion)}</b>ruleset · ${esc(data.generated)}</div>
   </div>
+</section>
+
+<section class="checker" id="check">
+  <h2>Is your camera affected?</h2>
+  <p class="ck-lede">Type a model. Everything is answered in your browser from the same
+  <a href="/rules.json">rules.json</a> below — nothing is sent anywhere, and this page never asks for
+  a camera, an address or a password.</p>
+  <div class="ck-row">
+    <input id="ck-model" type="search" list="ck-models" autocomplete="off" spellcheck="false"
+           placeholder="M3215-LVE, Q1656, M1137&hellip;" aria-label="Axis camera model">
+    <select id="ck-os" aria-label="Current AXIS OS version">
+      <option value="">AXIS OS version…</option>
+      <option value="12">AXIS OS 12.x</option>
+      <option value="11">AXIS OS 11.x</option>
+      <option value="10">AXIS OS 10.x or older</option>
+      <option value="13">Already on 13</option>
+    </select>
+  </div>
+  <datalist id="ck-models">${MODEL_INDEX.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist>
+  <div id="ck-out" class="ck-out" role="status" aria-live="polite"></div>
+  <p class="note">This checks what a model and a firmware version can tell you on their own. What
+  actually decides whether a camera rolls back is which applications are installed on it — and that
+  needs a scan of the device itself.</p>
 </section>
 
 <div class="filters"><div class="wrap">
@@ -368,6 +417,7 @@ ${bySection}
 
 <script>
 (function(){
+  var RULES = ${JSON.stringify(data.rules.map((r) => ({ id: r.id, tier: r.tier, version: r.version })))};
   var root=document.documentElement, btn=document.getElementById('theme');
   try{ var s=localStorage.getItem('preflight-theme'); if(s) root.dataset.theme=s;
        else if(matchMedia('(prefers-color-scheme: dark)').matches) root.dataset.theme='dark'; }catch(e){}
@@ -394,6 +444,71 @@ ${bySection}
     });
     count.textContent = shown === rules.length ? rules.length+' rules' : shown+' of '+rules.length;
   }
+
+  // ---- model / firmware checker -----------------------------------------
+  var MODELS32 = ${JSON.stringify(data.rules.find((r) => r.id === 'A5').models32bit)};
+  var NONVIDEO = ${JSON.stringify(data.rules.find((r) => r.id === 'C7').modelsAffected)};
+  var mi=document.getElementById('ck-model'), os=document.getElementById('ck-os'), out=document.getElementById('ck-out');
+
+  // Match generously: people type "Q1656" for "AXIS Q1656-LE", and the published
+  // lists use the full marketing name. Compare on letters and digits only.
+  function norm(s){ return String(s).toUpperCase().replace(/^AXIS /,'').replace(/[^A-Z0-9]/g,''); }
+
+  function card(cls,title,body,link){
+    return '<div class="ck-card '+cls+'"><h4>'+title+'</h4><p>'+body+
+      (link?' <a href="#'+link+'">'+link+' →</a>':'')+'</p></div>';
+  }
+
+  function check(){
+    var q=(mi.value||'').trim(), v=os.value, html='';
+    if(!q && !v){ out.innerHTML=''; return; }
+
+    if(q){
+      var n=norm(q);
+      var hit32=MODELS32.filter(function(m){ var k=norm(m); return k===n || k.indexOf(n)===0 || n.indexOf(k)===0; });
+      var hitNV=NONVIDEO.filter(function(m){ var k=norm(m); return k===n || k.indexOf(n)===0 || n.indexOf(k)===0; });
+
+      if(hit32.length){
+        html+=card('bad','32-bit — exposed to the Y2038 ABI break',
+          'Axis lists '+hit32.join(', ')+' among the 32-bit products. AXIS OS 13 moves to 64-bit time_t, '+
+          'so every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.','A5');
+      } else {
+        html+=card('','Not on the published 32-bit list',
+          'That is not the same as safe. The list names products, and the bench found an AXIS M1137 reporting '+
+          'armv7hf while absent from it — so read Properties.System.Architecture on the device rather than '+
+          'trusting the model name.','A5');
+      }
+      if(hitNV.length){
+        html+=card('warn','Non-video product — StreamCache.Size is removed',
+          'root.StreamCache.Size no longer exists on '+hitNV.join(', ')+'. Configuration tooling that sets it will error.','C7');
+      }
+    }
+
+    if(v){
+      var maj=parseInt(v,10);
+      if(maj>=13){
+        html+=card('ok','Already on AXIS OS 13',
+          'The breaking changes below have already applied to this camera. What is left to watch is the '+
+          'AXIS OS 14 wave in September 2028.','');
+      } else if(maj<12){
+        html+=card('bad','Older than AXIS OS 12 — the scan cannot answer for you',
+          'This firmware does not publish per-application compatibility or signature status, so nothing '+
+          'read from the camera can tell you whether its applications survive the upgrade. Treat it as '+
+          'unverified, never as safe, and check each application with its vendor.','A1');
+      } else {
+        html+=card('ok','Reports what the checks need',
+          'AXIS OS '+v+' publishes CompatibleOsVersions and SignatureStatus per application, so a read-only '+
+          'scan can answer whether this camera rolls back.','A1');
+      }
+      var applies=RULES.filter(function(r){ return r.tier!=='future' && parseFloat(r.version)>maj; }).length;
+      if(applies>0){
+        html+=card('', applies + ' documented changes land between AXIS OS '+v+' and 13',
+          'Filter the list below by version to read them.','');
+      }
+    }
+    out.innerHTML=html;
+  }
+  mi.addEventListener('input',check); os.addEventListener('change',check); check();
 
   document.querySelectorAll('button.f').forEach(function(b){
     b.addEventListener('click',function(){
