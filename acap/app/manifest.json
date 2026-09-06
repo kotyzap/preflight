@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.7.4",
+  "acapPackageConf": {
+    "setup": {
+      "appName": "preflight",
+      "friendlyName": "Preflight — AXIS OS upgrade check",
+      "vendor": "Pavel Kotyza",
+      "version": "0.1.0",
+      "architecture": "aarch64",
+      "runMode": "respawn"
+    },
+    "configuration": {
+      "settingPage": "index.html",
+      "reverseProxy": [
+        { "apiPath": "status.cgi",   "target": "http://localhost:32554/status.cgi",   "access": "admin" },
+        { "apiPath": "settings.cgi", "target": "http://localhost:32554/settings.cgi", "access": "admin" },
+        { "apiPath": "scan.cgi",     "target": "http://localhost:32554/scan.cgi",     "access": "admin" },
+        { "apiPath": "results.cgi",  "target": "http://localhost:32554/results.cgi",  "access": "admin" },
+        { "apiPath": "report.cgi",   "target": "http://localhost:32554/report.cgi",   "access": "admin" }
+      ]
+    }
+  }
+}

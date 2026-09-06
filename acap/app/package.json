@@ -1,0 +1,11 @@
+{
+  "name": "preflight-acap",
+  "version": "0.1.0",
+  "description": "Scans an Axis camera subnet and reports which cameras survive an AXIS OS upgrade",
+  "main": "dist/bootstrap.js",
+  "private": true,
+  "scripts": { "build": "tsc" },
+  "author": "Pavel Kotyza <kotyza@gmail.com>",
+  "license": "MIT",
+  "devDependencies": { "@types/node": "^20.11.0", "typescript": "^5.9.0" }
+}
