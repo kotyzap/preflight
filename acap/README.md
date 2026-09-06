@@ -1,8 +1,6 @@
 # Preflight ACAP — subnet upgrade scanner
 
-**Status: scaffold, not yet buildable.** Paused mid-build on 2026-09-06 to ship the
-web tools first. What exists and what does not is listed below so the next session
-does not have to reverse-engineer it.
+**Status: complete except licence signing. Not yet built or installed on hardware.**
 
 Install it on **one** camera; it scans the rest of that camera's /24 and reports
 which cameras survive an AXIS OS upgrade. Read-only against every camera it finds.
@@ -19,15 +17,41 @@ which cameras survive an AXIS OS upgrade. Read-only against every camera it find
   It was refactored to have zero imports precisely so both can share it. Do not
   edit this copy; edit it in axis-cli and re-sync.
 
+- `app/src/scan.ts` — reads its own IP and netmask from the OS (no credentials, no
+  round-trip), sweeps the /24, probes each host over HTTPS then HTTP. Clamps to a
+  /24 even on a wider netmask: a camera is not the right place to sweep a /16, and
+  an app that tried would look far more like a network scanner than a compatibility
+  check. Includes a dependency-free list.cgi parser handling both the AXIS OS 12
+  element form and the OS 10 self-closing form.
+- `app/src/bootstrap.ts` — HTTP server on `process.env.HTTP_PORT`, five CGIs,
+  settings and results in `PERSISTENT_DATA_PATH` at mode 0600.
+- `app/src/licence.ts` — the free/paid line and offline key verification, both in
+  one small file because both are business decisions.
+- `app/html/index.html` — settings UI, light theme with a toggle.
+- `sync.mjs` — pulls engine.ts, report.ts and rules.json from their single homes
+  and stamps each with a "synced copy, do not edit here" header.
+
 ## Not done
 
-- `app/src/scan.ts` — read own IP/netmask, sweep the /24, probe each host.
-- `app/src/bootstrap.ts` — HTTP server on `process.env.HTTP_PORT`, the five CGIs,
-  persistent settings in `PERSISTENT_DATA_PATH`.
-- `app/html/index.html` — settings UI (credentials, scan trigger, results).
-- Licence gate: free scan shows verdicts, licence unlocks the detailed report.
-  Axis's own ACAP licensing is the intended rail — it is how integrators already buy.
-- `sync:engine` / `sync:rules` scripts, and a `rules.json` copy in `app/src/`.
+- **Licence signing.** `LICENCE_PUBLIC_KEY` in `licence.ts` is empty, so
+  `verifyKey()` currently rejects every key. It fails *closed* on purpose — a build
+  that could not verify would otherwise hand the paid tier to everyone. Generate a
+  keypair, embed the public half, and write the key-issuing side.
+- **Never built.** `./build.sh arm64` has not been run; Docker was not available in
+  this session. Expect the usual first-build friction from the gotchas list.
+- **Never installed on a camera.** Nothing here has met hardware.
+
+## The free/paid line, and why
+
+Free: which cameras roll back, how many applications are responsible on each, and
+every camera-wide finding. Paid: which applications, what to do about each, and the
+customer-ready report.
+
+The reasoning is in `licence.ts`. Short version: the CLI is public and does
+everything, so gating *information* only inconveniences the buyer who would not
+have cloned a repo anyway. What is worth money is the deliverable an integrator
+bills for, and not having to set anything up. The free tier still answers the
+safety question, which is what preflight.4xs.dev promises.
 
 ## Security framing (write this into the UI before release)
 

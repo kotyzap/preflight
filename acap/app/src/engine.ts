@@ -1,3 +1,7 @@
+// SYNCED COPY — do not edit here.
+// Source of truth: axis-cli/src/preflight/engine.ts
+// Re-run `node sync.mjs` after changing it there.
+
 /**
  * Upgrade Preflight — will this camera survive AXIS OS 13?
  *

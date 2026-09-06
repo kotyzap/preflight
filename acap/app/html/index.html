@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preflight — AXIS OS upgrade check</title>
+<style>
+:root{
+  --bg:#f7f7f5; --surface:#fff; --ink:#16181d; --muted:#5c6270; --line:#e2e2dd;
+  --accent:#c2410c; --a:#b91c1c; --a-bg:#fef2f2; --b:#b45309; --b-bg:#fffbeb;
+  --c:#1d4ed8; --c-bg:#eff6ff; --ok:#0d6f68; --ok-bg:#e8f2f0; --code:#f0f0ec;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+html[data-theme="dark"]{
+  --bg:#131417; --surface:#1a1c21; --ink:#e8e8e6; --muted:#9aa1ae; --line:#2b2e35;
+  --accent:#fb923c; --a:#f87171; --a-bg:#2a1618; --b:#fbbf24; --b-bg:#2a2110;
+  --c:#7dabff; --c-bg:#141d2e; --ok:#4fb3a7; --ok-bg:#122624; --code:#22252b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:940px;margin:0 auto;padding:22px 20px 60px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+h1{font-size:19px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+#theme{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);
+  border-radius:6px;width:32px;height:32px;cursor:pointer}
+.lede{color:var(--muted);margin:0 0 22px;max-width:72ch}
+h2{font-size:15px;margin:26px 0 10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+input,select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:9px 11px;font:inherit}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+button.go{background:var(--accent);border:1px solid var(--accent);color:#fff;border-radius:6px;
+  padding:10px 18px;font:600 14px inherit;cursor:pointer}
+button.go[disabled]{opacity:.5;cursor:default}
+button.ghost{background:var(--surface);border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:10px 16px;font:14px inherit;cursor:pointer}
+.msg{font-size:13px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile b{display:block;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tile.bad b{color:var(--a)} .tile.unk b{color:var(--b)} .tile.ok b{color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--ink);padding:0 8px 6px 0}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td.ip{font-family:var(--mono)}
+.v{display:inline-block;font:600 11px var(--mono);padding:3px 7px;border-radius:4px;white-space:nowrap}
+.v-bad{background:var(--a-bg);color:var(--a)} .v-unk{background:var(--b-bg);color:var(--b)}
+.v-ok{background:var(--ok-bg);color:var(--ok)} .v-none{background:var(--code);color:var(--muted)}
+details{margin-top:6px}
+summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.finding{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.finding:last-child{border-bottom:0}
+.rid{font:600 11px var(--mono);color:var(--a);margin-right:6px}
+.locked{background:var(--b-bg);border-radius:7px;padding:14px 16px;margin-top:14px;font-size:13.5px}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(--mono)}
+.bar{height:4px;background:var(--code);border-radius:2px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+@media(max-width:680px){.grid,.grid-3,.tiles{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Pre<span>flight</span></h1>
+  <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
+</header>
+<p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
+before you start it. Read-only: it lists applications and reads settings, and writes nothing to any device.</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Credentials for the other cameras</h2>
+  <p class="msg">Stored on this camera only, and never sent anywhere except to the cameras being checked.
+  Cameras that refuse these credentials are reported as unverified, never as safe.</p>
+  <div class="grid" style="margin-top:12px">
+    <div><label for="user">Username</label><input id="user" autocomplete="off"></div>
+    <div><label for="pass">Password</label><input id="pass" type="password" autocomplete="new-password" placeholder="unchanged"></div>
+  </div>
+  <div class="grid-3" style="margin-top:12px">
+    <div><label for="target">Target AXIS OS</label>
+      <select id="target"><option value="13">13</option><option value="12">12</option></select></div>
+    <div><label for="conc">Parallel checks</label><input id="conc" type="number" min="1" max="32"></div>
+    <div><label for="key">Licence key</label><input id="key" placeholder="PF1-…" autocomplete="off"></div>
+  </div>
+  <div class="row">
+    <button class="go" id="save" type="button">Save</button>
+    <button class="go" id="scan" type="button">Scan the network</button>
+    <span class="msg" id="msg"></span>
+  </div>
+  <div class="bar"><i id="prog"></i></div>
+</div>
+
+<div id="out"></div>
+
+<p class="note">Every rule this app checks is published with its source at
+<a href="https://preflight.4xs.dev">preflight.4xs.dev</a>. The exact list of endpoints it requests is
+shown by <code>status.cgi</code> — all GET, all read-only.</p>
+
+</div>
+
+<script>
+(function () {
+  var API = location.pathname.replace(/\/[^/]*$/, '');
+  var $ = function (id) { return document.getElementById(id); };
+  var root = document.documentElement;
+
+  try { var t = localStorage.getItem('preflight-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  $('theme').onclick = function () {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('preflight-theme', root.dataset.theme); } catch (e) {}
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function get(p) { return fetch(API + p, { credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
+
+  get('/settings.cgi').then(function (s) {
+    $('user').value = s.user || '';
+    $('target').value = String(s.targetOsMajor || 13);
+    $('conc').value = s.concurrency || 12;
+    $('key').value = s.licenceKey || '';
+    if (s.hasPass) $('pass').placeholder = 'unchanged';
+  });
+
+  $('save').onclick = function () {
+    $('msg').textContent = 'Saving…';
+    fetch(API + '/settings.cgi', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: $('user').value, pass: $('pass').value,
+        targetOsMajor: Number($('target').value),
+        concurrency: Number($('conc').value), licenceKey: $('key').value
+      })
+    }).then(function () { $('msg').textContent = 'Saved.'; $('pass').value = ''; render(); });
+  };
+
+  $('scan').onclick = function () {
+    $('scan').disabled = true;
+    $('msg').textContent = 'Scanning…';
+    fetch(API + '/scan.cgi', { method: 'GET', credentials: 'same-origin' }).then(poll);
+  };
+
+  function poll() {
+    get('/results.cgi').then(function (d) {
+      var p = d.progress || {};
+      $('prog').style.width = p.total ? Math.round((p.done / p.total) * 100) + '%' : '0';
+      if (p.running) {
+        $('msg').textContent = 'Checked ' + p.done + ' of ' + p.total + ' addresses, ' + p.found + ' cameras found…';
+        return setTimeout(poll, 1200);
+      }
+      $('scan').disabled = false;
+      $('msg').textContent = d.at ? 'Last scan ' + new Date(d.at).toLocaleString() : '';
+      draw(d);
+    });
+  }
+
+  function render() { get('/results.cgi').then(draw); }
+
+  var VERDICT = {
+    'will-roll-back': ['v-bad', 'Will roll back'],
+    'unknown': ['v-unk', 'Cannot be determined'],
+    'will-lose-function': ['v-unk', 'Will lose function'],
+    'will-upgrade': ['v-ok', 'Will upgrade']
+  };
+
+  function draw(d) {
+    var cams = d.cameras || [];
+    if (!cams.length) {
+      $('out').innerHTML = '<div class="card"><p class="msg">No results yet. Enter credentials and run a scan.</p></div>';
+      return;
+    }
+    var s = d.summary || {};
+    var h = '<div class="tiles">' +
+      '<div class="tile bad"><b>' + (s.rollback || 0) + '</b><span>will roll back</span></div>' +
+      '<div class="tile unk"><b>' + (s.unknown || 0) + '</b><span>unverified</span></div>' +
+      '<div class="tile ok"><b>' + (s.clean || 0) + '</b><span>will upgrade</span></div>' +
+      '<div class="tile"><b>' + (s.cameras || 0) + '</b><span>cameras found</span></div>' +
+      '</div><div class="card"><table><thead><tr>' +
+      '<th>Address</th><th>Model</th><th>AXIS OS</th><th>Verdict</th><th>Detail</th>' +
+      '</tr></thead><tbody>';
+
+    cams.forEach(function (c) {
+      var v = c.result ? VERDICT[c.result.verdict] : ['v-none', c.note ? 'Not checked' : 'No data'];
+      var f = (c.result && c.result.findings) || [];
+      h += '<tr><td class="ip">' + esc(c.host) + '</td><td>' + esc(c.product || '—') + '</td>' +
+        '<td>' + esc(c.firmware || '—') + '</td>' +
+        '<td><span class="v ' + v[0] + '">' + esc(v[1]) + '</span></td><td>';
+      if (f.length) {
+        h += '<details><summary>' + f.length + ' finding' + (f.length === 1 ? '' : 's') + '</summary>';
+        f.forEach(function (x) {
+          h += '<div class="finding"><span class="rid">' + esc(x.rule) + '</span>' + esc(x.message) + '</div>';
+        });
+        h += '</details>';
+      } else if (c.note) { h += '<span class="msg">' + esc(c.note) + '</span>'; }
+      h += '</td></tr>';
+    });
+    h += '</tbody></table>';
+
+    if (!d.licensed) {
+      h += '<div class="locked"><strong>Free scan.</strong> You can see which cameras roll back and how many ' +
+        'applications are responsible on each. A licence key names those applications, explains what to do ' +
+        'about each one, and unlocks the customer-ready report. ' +
+        'The open-source command-line scanner at <a href="https://preflight.4xs.dev">preflight.4xs.dev</a> ' +
+        'gives the full detail free if you would rather run it yourself.</div>';
+    } else {
+      h += '<div class="row"><a class="ghost" href="' + API + '/report.cgi" target="_blank" rel="noopener">' +
+        'Open the report</a><span class="msg">Print it to PDF from your browser — the layout is made for A4.</span></div>';
+    }
+    h += '</div>';
+    $('out').innerHTML = h;
+  }
+
+  get('/status.cgi').then(function (st) {
+    if (st.progress && st.progress.running) { $('scan').disabled = true; poll(); } else { render(); }
+  });
+})();
+</script>
+</body>
+</html>
