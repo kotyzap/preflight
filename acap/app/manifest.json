@@ -3,20 +3,47 @@
   "acapPackageConf": {
     "setup": {
       "appName": "preflight",
-      "friendlyName": "Preflight — AXIS OS upgrade check",
-      "vendor": "Pavel Kotyza",
+      "friendlyName": "Preflight",
+      "vendor": "kotyza@gmail.com",
       "version": "0.1.0",
       "architecture": "aarch64",
-      "runMode": "respawn"
+      "runMode": "respawn",
+      "vendorId": "19f191bb41",
+      "compatibleOsVersions": [
+        {
+          "min": "11.8",
+          "max": "13"
+        }
+      ]
     },
     "configuration": {
       "settingPage": "index.html",
       "reverseProxy": [
-        { "apiPath": "status.cgi",   "target": "http://localhost:32554/status.cgi",   "access": "admin" },
-        { "apiPath": "settings.cgi", "target": "http://localhost:32554/settings.cgi", "access": "admin" },
-        { "apiPath": "scan.cgi",     "target": "http://localhost:32554/scan.cgi",     "access": "admin" },
-        { "apiPath": "results.cgi",  "target": "http://localhost:32554/results.cgi",  "access": "admin" },
-        { "apiPath": "report.cgi",   "target": "http://localhost:32554/report.cgi",   "access": "admin" }
+        {
+          "apiPath": "status.cgi",
+          "target": "http://localhost:32554/status.cgi",
+          "access": "admin"
+        },
+        {
+          "apiPath": "settings.cgi",
+          "target": "http://localhost:32554/settings.cgi",
+          "access": "admin"
+        },
+        {
+          "apiPath": "scan.cgi",
+          "target": "http://localhost:32554/scan.cgi",
+          "access": "admin"
+        },
+        {
+          "apiPath": "results.cgi",
+          "target": "http://localhost:32554/results.cgi",
+          "access": "admin"
+        },
+        {
+          "apiPath": "report.cgi",
+          "target": "http://localhost:32554/report.cgi",
+          "access": "admin"
+        }
       ]
     }
   }

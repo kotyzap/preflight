@@ -36,7 +36,12 @@ import { ScannedCamera } from './scan';
  */
 function publicKey(): string | null {
     for (const p of [join(__dirname, 'licence-key.pub'), join(__dirname, '..', 'licence-key.pub')]) {
-        if (existsSync(p)) return readFileSync(p, 'utf8');
+        if (!existsSync(p)) continue;
+        const text = readFileSync(p, 'utf8').trim();
+        // A failed `openssl pkey` leaves a zero-byte file behind, and existsSync
+        // says yes to it. An empty or non-PEM file is no key at all: report that
+        // rather than letting verify() throw and blame the customer's key.
+        if (text.includes('BEGIN PUBLIC KEY')) return text;
     }
     return null;
 }

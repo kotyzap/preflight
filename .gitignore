@@ -37,3 +37,13 @@ node_modules/
 *.key
 .preflight/
 signing*
+
+# ACAP build output. The .eap bundles a Node runtime — 30 MB per package, and
+# build-<arch>/ is another 109 MB including the ARM node binary. Rebuild with
+# `sh build.sh arm64`; do not carry binaries in git.
+acap/build-*/
+acap/*.eap
+
+# The public licence key IS meant to be committed — it verifies and cannot sign —
+# but only a real one. A failed `openssl pkey` leaves a zero-byte file behind.
+!acap/app/src/licence-key.pub

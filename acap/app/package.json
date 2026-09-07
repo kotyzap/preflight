@@ -5,7 +5,7 @@
   "main": "dist/bootstrap.js",
   "private": true,
   "scripts": {
-    "build": "tsc && node -e \"require('fs').copyFileSync('src/rules.json','dist/rules.json')\"",
+    "build": "tsc && node -e \"const f=require('fs');f.copyFileSync('src/rules.json','dist/rules.json');const k='src/licence-key.pub';if(f.existsSync(k)&&f.readFileSync(k,'utf8').includes('BEGIN PUBLIC KEY')){f.copyFileSync(k,'dist/licence-key.pub');console.log('licence verification: enabled')}else console.log('licence verification: DISABLED - no valid src/licence-key.pub, this build treats every key as unlicensed')\"",
     "sync": "node ../sync.mjs"
   },
   "author": "Pavel Kotyza <kotyza@gmail.com>",
