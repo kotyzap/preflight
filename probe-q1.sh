@@ -2,8 +2,8 @@
 # Preflight — Q1/Q3 bench probe. READ-ONLY: parameter reads only.
 # Nothing is written to the camera, nothing is installed.
 #
-#   ./probe-q1.sh 192.168.1.156 root 'pass'          # https (self-signed ok)
-#   ./probe-q1.sh 192.168.1.156 root 'pass' http
+#   ./probe-q1.sh 192.0.2.10 root 'pass'          # https (self-signed ok)
+#   ./probe-q1.sh 192.0.2.10 root 'pass' http
 #
 # Writes probe-<host>.json next to itself.
 
