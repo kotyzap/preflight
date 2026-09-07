@@ -2,7 +2,7 @@
 // Preflight — renders rules.json to a static page. Zero dependencies.
 // Usage: node build.mjs [--out dist/index.html]
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const ROOT = dirname(new URL(import.meta.url).pathname);
@@ -10,6 +10,20 @@ const outArg = process.argv.indexOf('--out');
 const OUT = resolve(ROOT, outArg > -1 ? process.argv[outArg + 1] : 'dist/index.html');
 
 const data = JSON.parse(readFileSync(resolve(ROOT, 'rules.json'), 'utf8'));
+
+/**
+ * Model → chipset, 579 entries, extracted from the 4XS Toolbox extension whose own
+ * snapshot came from CamStreamer's published supported-cameras list.
+ *
+ * This is what makes the checker useful rather than a lookup against Axis's
+ * 58-model list. The bench already proved that list incomplete — an AXIS M1137
+ * reports armv7hf and does not appear on it — and the chipset explains why:
+ * M1137 is ARTPEC-6/7. Chipset determines the ACAP architecture, so it answers A5
+ * for the whole catalogue instead of only the models Axis chose to name.
+ */
+const chipsets = existsSync(resolve(ROOT, 'chipsets.json'))
+  ? JSON.parse(readFileSync(resolve(ROOT, 'chipsets.json'), 'utf8'))
+  : { source: null, chipsets: {} };
 
 const SITE = process.env.PREFLIGHT_SITE ?? 'https://preflight.4xs.dev';
 const DESCRIPTION =
@@ -105,10 +119,6 @@ const bySection = TIER_ORDER.map((t) => {
 
 const counts = TIER_ORDER.map((t) => [t, data.rules.filter((r) => r.tier === t).length]);
 
-/** Every model named anywhere in the ruleset, for the checker's autocomplete. */
-const MODEL_INDEX = [
-  ...new Set(data.rules.flatMap((r) => [...(r.models32bit ?? []), ...(r.modelsAffected ?? [])])),
-].sort();
 /**
  * Newest AXIS OS version first.
  *
@@ -269,6 +279,7 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
   border-radius:7px;padding:11px 14px;font-size:15px;font-family:inherit}
 #ck-model:focus,#ck-os:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
 .ck-out:empty{display:none}
+.ck-hint{font-size:13px;color:var(--muted);margin:12px 0 0}
 .ck-out{display:grid;gap:10px}
 .ck-card{border-left:3px solid var(--line);background:var(--bg);border-radius:0 7px 7px 0;padding:13px 16px}
 .ck-card.bad{border-left-color:var(--a);background:var(--a-bg)}
@@ -346,7 +357,7 @@ footer a{color:var(--muted)}
   a camera, an address or a password.</p>
   <div class="ck-row">
     <input id="ck-model" type="search" list="ck-models" autocomplete="off" spellcheck="false"
-           placeholder="M3215-LVE, Q1656, M1137&hellip;" aria-label="Axis camera model">
+           placeholder="Any Axis model &mdash; M3215-LVE, Q1656, M1137&hellip;" aria-label="Axis camera model">
     <select id="ck-os" aria-label="Current AXIS OS version">
       <option value="">AXIS OS version…</option>
       <option value="12">AXIS OS 12.x</option>
@@ -355,8 +366,12 @@ footer a{color:var(--muted)}
       <option value="13">Already on 13</option>
     </select>
   </div>
-  <datalist id="ck-models">${MODEL_INDEX.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist>
+  <datalist id="ck-models">${Object.keys(chipsets.chipsets).sort().map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist>
   <div id="ck-out" class="ck-out" role="status" aria-live="polite"></div>
+  <p class="ck-hint">${Object.keys(chipsets.chipsets).length} models, matched by chipset — which is what
+  decides the architecture, and therefore the answer Axis's own 58-model list gets wrong for some cameras.
+  Chipset data from <a href="https://camstreamer.com/download-app-all-supported-cameras">CamStreamer's
+  supported-cameras list</a>.</p>
   <p class="note">This checks what a model and a firmware version can tell you on their own. What
   actually decides whether a camera rolls back is which applications are installed on it — and that
   needs a scan of the device itself.</p>
@@ -446,6 +461,7 @@ ${bySection}
   }
 
   // ---- model / firmware checker -----------------------------------------
+  var CHIPS = ${JSON.stringify(chipsets.chipsets)};
   var MODELS32 = ${JSON.stringify(data.rules.find((r) => r.id === 'A5').models32bit)};
   var NONVIDEO = ${JSON.stringify(data.rules.find((r) => r.id === 'C7').modelsAffected)};
   var mi=document.getElementById('ck-model'), os=document.getElementById('ck-os'), out=document.getElementById('ck-out');
@@ -465,18 +481,47 @@ ${bySection}
 
     if(q){
       var n=norm(q);
-      var hit32=MODELS32.filter(function(m){ var k=norm(m); return k===n || k.indexOf(n)===0 || n.indexOf(k)===0; });
-      var hitNV=NONVIDEO.filter(function(m){ var k=norm(m); return k===n || k.indexOf(n)===0 || n.indexOf(k)===0; });
+      if(n.length<3){ out.innerHTML=''; return; }
 
-      if(hit32.length){
+      // Chipset first: it decides the ACAP architecture, so it answers A5 for the
+      // whole catalogue rather than only the models Axis chose to name.
+      var chip=null, chipModel=null;
+      for(var key in CHIPS){
+        var k=norm(key);
+        if(k===n){ chip=CHIPS[key]; chipModel=key; break; }
+        if(!chip && (k.indexOf(n)>-1 || n.indexOf(k)>-1)){ chip=CHIPS[key]; chipModel=key; }
+      }
+      // Substring, not prefix: people type "6075" for "AXIS Q6075-SE". Minimum three
+      // characters, because two would match half the catalogue.
+      var match=function(m){ var k=norm(m); return k===n || k.indexOf(n)>-1 || n.indexOf(k)>-1; };
+      var hit32=MODELS32.filter(match);
+      var hitNV=NONVIDEO.filter(match);
+
+      var listed = hit32.length ? ' Axis also names it directly: '+hit32.join(', ')+'.' : '';
+
+      if(chip==='ARTPEC-8' || chip==='ARTPEC-9'){
+        html+=card('ok','64-bit — not exposed to the Y2038 ABI break',
+          chipModel+' is '+chip+', which runs 64-bit ACAPs (aarch64). The time_t change in AXIS OS 13 does '+
+          'not force a rebuild here.'+listed,'A5');
+      } else if(chip==='ARTPEC-6/7'){
         html+=card('bad','32-bit — exposed to the Y2038 ABI break',
-          'Axis lists '+hit32.join(', ')+' among the 32-bit products. AXIS OS 13 moves to 64-bit time_t, '+
-          'so every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.','A5');
+          chipModel+' is '+chip+', which runs 32-bit ACAPs (armv7hf). AXIS OS 13 moves to 64-bit time_t, so '+
+          'every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.'+
+          (hit32.length ? listed : ' Note that Axis does not name this model on its 32-bit list — the bench '+
+          'confirmed an M1137 reporting armv7hf while absent from it, which is why this checks the chipset.'),'A5');
+      } else if(chip){
+        html+=card('warn','Older or non-ARTPEC platform — check the lifecycle first',
+          chipModel+' is '+chip+'. Before worrying about breaking changes, confirm this product receives '+
+          'current AXIS OS releases at all; many older platforms are on a long-term-support track and will '+
+          'never be offered AXIS OS 13. Read Properties.System.Architecture on the device for the definitive answer.','A5');
+      } else if(hit32.length){
+        html+=card('bad','32-bit — exposed to the Y2038 ABI break',
+          'Axis lists '+hit32.join(', ')+' among the 32-bit products. AXIS OS 13 moves to 64-bit time_t, so '+
+          'every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.','A5');
       } else {
-        html+=card('','Not on the published 32-bit list',
-          'That is not the same as safe. The list names products, and the bench found an AXIS M1137 reporting '+
-          'armv7hf while absent from it — so read Properties.System.Architecture on the device rather than '+
-          'trusting the model name.','A5');
+        html+=card('','Model not recognised',
+          'Not in the chipset table, and not named on the Axis 32-bit list either. Read '+
+          'Properties.System.Architecture on the device — armv7hf is exposed, aarch64 is not.','A5');
       }
       if(hitNV.length){
         html+=card('warn','Non-video product — StreamCache.Size is removed',
@@ -633,6 +678,19 @@ a{color:#c2410c}
 </main></body></html>
 `
 );
+
+// The page's behaviour lives in an inline <script>. A syntax error there leaves the
+// checker silently dead — the HTML looks perfect and nothing happens when you type.
+// One escaped apostrophe did exactly that, so the script is parsed at build time.
+for (const [i, body] of [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].entries()) {
+  try {
+    new Function(body[1]);
+  } catch (err) {
+    console.error(`\n✗ Inline script #${i + 1} does not parse: ${err.message}`);
+    console.error('  The page would render and the checker would silently do nothing.');
+    process.exit(1);
+  }
+}
 
 // Guard: dist/ is published verbatim, so anything that lands here is public.
 // The pitch deck used to build into this directory and would have gone live at
