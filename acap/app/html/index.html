@@ -103,7 +103,7 @@ before you start it. Read-only: it lists applications and reads settings, and wr
 
 <p class="note">Every rule this app checks is published with its source at
 <a href="https://preflight.4xs.dev">preflight.4xs.dev</a>. The exact list of endpoints it requests is
-shown by <code>status.cgi</code> — all GET, all read-only.</p>
+shown by <code>status</code> — all GET, all read-only.</p>
 
 </div>
 
@@ -127,7 +127,7 @@ shown by <code>status.cgi</code> — all GET, all read-only.</p>
 
   function get(p) { return fetch(API + p, { credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
 
-  get('/settings.cgi').then(function (s) {
+  get('/settings').then(function (s) {
     $('user').value = s.user || '';
     $('target').value = String(s.targetOsMajor || 13);
     $('conc').value = s.concurrency || 12;
@@ -137,7 +137,7 @@ shown by <code>status.cgi</code> — all GET, all read-only.</p>
 
   $('save').onclick = function () {
     $('msg').textContent = 'Saving…';
-    fetch(API + '/settings.cgi', {
+    fetch(API + '/settings', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -151,11 +151,11 @@ shown by <code>status.cgi</code> — all GET, all read-only.</p>
   $('scan').onclick = function () {
     $('scan').disabled = true;
     $('msg').textContent = 'Scanning…';
-    fetch(API + '/scan.cgi', { method: 'GET', credentials: 'same-origin' }).then(poll);
+    fetch(API + '/scan', { method: 'GET', credentials: 'same-origin' }).then(poll);
   };
 
   function poll() {
-    get('/results.cgi').then(function (d) {
+    get('/results').then(function (d) {
       var p = d.progress || {};
       $('prog').style.width = p.total ? Math.round((p.done / p.total) * 100) + '%' : '0';
       if (p.running) {
@@ -168,7 +168,7 @@ shown by <code>status.cgi</code> — all GET, all read-only.</p>
     });
   }
 
-  function render() { get('/results.cgi').then(draw); }
+  function render() { get('/results').then(draw); }
 
   var VERDICT = {
     'will-roll-back': ['v-bad', 'Will roll back'],
@@ -217,14 +217,14 @@ shown by <code>status.cgi</code> — all GET, all read-only.</p>
         'The open-source command-line scanner at <a href="https://preflight.4xs.dev">preflight.4xs.dev</a> ' +
         'gives the full detail free if you would rather run it yourself.</div>';
     } else {
-      h += '<div class="row"><a class="ghost" href="' + API + '/report.cgi" target="_blank" rel="noopener">' +
+      h += '<div class="row"><a class="ghost" href="' + API + '/report" target="_blank" rel="noopener">' +
         'Open the report</a><span class="msg">Print it to PDF from your browser — the layout is made for A4.</span></div>';
     }
     h += '</div>';
     $('out').innerHTML = h;
   }
 
-  get('/status.cgi').then(function (st) {
+  get('/status').then(function (st) {
     if (st.progress && st.progress.running) { $('scan').disabled = true; poll(); } else { render(); }
   });
 })();

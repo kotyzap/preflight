@@ -96,12 +96,18 @@ async function startScan() {
 
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    const route = url.pathname.replace(/^\/local\/preflight\//, '/').replace(/^\/+/, '/');
+    // AXIS OS mounts each reverseProxy apiPath at /local/preflight/<apiPath>.
+    // The apiPaths are declared both bare ("status") and with a .cgi suffix, so
+    // strip the prefix and the suffix and route on the bare name either way.
+    const route = url.pathname
+        .replace(/^\/local\/preflight\//, '/')
+        .replace(/^\/+/, '/')
+        .replace(/\.cgi$/, '');
     const s = readSettings();
     const lic = licenceState(s.licenceKey);
 
     try {
-        if (route === '/status.cgi') {
+        if (route === '/status') {
             const net = ownNetwork();
             return json(res, 200, {
                 app: 'preflight',
@@ -114,7 +120,7 @@ const server = http.createServer(async (req, res) => {
             });
         }
 
-        if (route === '/settings.cgi') {
+        if (route === '/settings') {
             if (req.method === 'POST') {
                 const incoming = JSON.parse((await readBody(req)) || '{}');
                 const next: Settings = {
@@ -139,12 +145,12 @@ const server = http.createServer(async (req, res) => {
             });
         }
 
-        if (route === '/scan.cgi') {
+        if (route === '/scan') {
             void startScan();
             return json(res, 202, { started: true, progress });
         }
 
-        if (route === '/results.cgi') {
+        if (route === '/results') {
             return json(res, 200, {
                 at: lastScan,
                 progress,
@@ -154,7 +160,7 @@ const server = http.createServer(async (req, res) => {
             });
         }
 
-        if (route === '/report.cgi') {
+        if (route === '/report') {
             if (!lic.valid) {
                 return json(res, 402, {
                     error: 'The detailed report needs a licence key.',
