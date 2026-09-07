@@ -299,6 +299,7 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
 .scanner{border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin:44px 0;background:var(--surface)}
 .scanner h2{margin:0 0 12px;font-size:18px}
 .scanner p{max-width:74ch}
+.avail{background:var(--b-bg);border-radius:6px;padding:11px 14px;font-size:14px}
 .ship{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0 4px}
 .ship > div{border-top:2px solid var(--line);padding-top:10px}
 .ship > div:first-child{border-top-color:var(--accent)}
@@ -399,6 +400,9 @@ ${bySection}
   It finds every camera on that network and answers one question per device: <em>will upgrade</em>,
   <em>will roll back</em>, or <em>cannot be determined</em>. For the ones that roll back, it names the
   applications responsible.</p>
+  <p class="avail"><strong>Not out yet.</strong> That ACAP is being built — the timeline below is honest
+  about where it stands. What runs today is the command-line scanner, which performs the same checks
+  against a fleet you point it at.</p>
   <p>Read-only against every camera it touches: it reads the installed-application list and a handful of
   parameters, the same calls any Axis management tool makes. Nothing is written, nothing is installed on
   the cameras being checked, and no credentials leave your network. The app publishes the complete list
@@ -567,10 +571,9 @@ ${bySection}
     if(html){
       html+='<div class="ck-cta"><h4>This is what a model number can tell you. Not much.</h4>'+
         '<p>What decides whether a camera rolls back is which applications are installed on it, and no '+
-        'model list knows that. Install Preflight on <strong>one</strong> camera and it checks every '+
-        'camera on that network &mdash; the applications on each, which ones fail re-installation, which '+
-        'cameras revert. The free scan names the cameras that will roll back and how many applications '+
-        'are at fault on each.</p>'+
+        'model list knows that. Preflight scans a fleet and answers it per camera &mdash; the applications '+
+        'on each, which ones fail re-installation, which cameras revert. It runs from the command line '+
+        'today; an ACAP you install on a single camera to check the whole network is in progress.</p>'+
         '<a class="ck-go" href="#scanner">How the scanner works &rarr;</a></div>';
     }
     out.innerHTML=html;
