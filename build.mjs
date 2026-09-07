@@ -280,6 +280,12 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
 #ck-model:focus,#ck-os:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
 .ck-out:empty{display:none}
 .ck-hint{font-size:13px;color:var(--muted);margin:12px 0 0}
+.ck-cta{border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:16px 18px;margin-top:4px}
+.ck-cta h4{margin:0 0 6px;font-size:15px}
+.ck-cta p{margin:0 0 12px;font-size:14px;max-width:74ch}
+.ck-go{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+  border-radius:6px;padding:9px 15px;font-size:14px;font-weight:600}
+.ck-go:hover{filter:brightness(1.08)}
 .ck-out{display:grid;gap:10px}
 .ck-card{border-left:3px solid var(--line);background:var(--bg);border-radius:0 7px 7px 0;padding:13px 16px}
 .ck-card.bad{border-left-color:var(--a);background:var(--a-bg)}
@@ -372,9 +378,6 @@ footer a{color:var(--muted)}
   decides the architecture, and therefore the answer Axis's own 58-model list gets wrong for some cameras.
   Chipset data from <a href="https://camstreamer.com/download-app-all-supported-cameras">CamStreamer's
   supported-cameras list</a>.</p>
-  <p class="note">This checks what a model and a firmware version can tell you on their own. What
-  actually decides whether a camera rolls back is which applications are installed on it — and that
-  needs a scan of the device itself.</p>
 </section>
 
 <div class="filters"><div class="wrap">
@@ -391,11 +394,15 @@ ${bySection}
 </div>
 
 <section class="scanner" id="scanner">
-  <h2>There is a scanner</h2>
-  <p>The rules above are checked automatically, per camera, read-only — no agent, nothing installed
-  on the camera, no credentials leaving your network. It reads the installed-application list and a
-  handful of parameters, the same calls any Axis tool makes, and answers one question per device:
-  <em>will upgrade</em>, <em>will roll back</em>, or <em>unknown</em>.</p>
+  <h2>Install it on one camera. It checks the whole network.</h2>
+  <p>An ACAP you add through the camera's own Apps page — no laptop, no terminal, nothing to set up.
+  It finds every camera on that network and answers one question per device: <em>will upgrade</em>,
+  <em>will roll back</em>, or <em>cannot be determined</em>. For the ones that roll back, it names the
+  applications responsible.</p>
+  <p>Read-only against every camera it touches: it reads the installed-application list and a handful of
+  parameters, the same calls any Axis management tool makes. Nothing is written, nothing is installed on
+  the cameras being checked, and no credentials leave your network. The app publishes the complete list
+  of endpoints it requests, so that is checkable on the device rather than taken on trust.</p>
   <p><strong>Unknown is not a pass.</strong> Firmware older than about AXIS OS 12 does not publish the
   per-application fields two of these rules depend on. Those cameras report unknown rather than a
   clean bill of health, because a false all-clear is the one answer that would make the tool worse
@@ -405,8 +412,11 @@ ${bySection}
     <div><span class="mono tagn">next</span><p>Signed downloads for macOS and Windows — nothing to install, no runtime to set up.</p></div>
     <div><span class="mono tagn">then</span><p>A signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network.</p></div>
   </div>
-  <p class="note">Every detection is free. There is no paid tier holding back the rollback answer —
-  the point of this is that fleets get checked before September, not that a scanner gets sold.</p>
+  <p class="note"><strong>The free scan tells you which cameras roll back.</strong> That answer is never
+  behind a paywall — the point of this is that fleets get checked, not that a scanner gets sold. A licence
+  names the applications on each camera, says what to do about each, and produces the report you can hand
+  to whoever owns the cameras. The command-line scanner is open and free either way, if you would rather
+  run it yourself.</p>
 </section>
 
 <section class="open" id="open">
@@ -550,6 +560,18 @@ ${bySection}
         html+=card('', applies + ' documented changes land between AXIS OS '+v+' and 13',
           'Filter the list below by version to read them.','');
       }
+    }
+    // Every result ends with the route to a real answer. Without this the checker
+    // stops on a caveat and the visitor has nowhere to go — and the caveat is the
+    // point: a model number cannot know what is installed on the camera.
+    if(html){
+      html+='<div class="ck-cta"><h4>This is what a model number can tell you. Not much.</h4>'+
+        '<p>What decides whether a camera rolls back is which applications are installed on it, and no '+
+        'model list knows that. Install Preflight on <strong>one</strong> camera and it checks every '+
+        'camera on that network &mdash; the applications on each, which ones fail re-installation, which '+
+        'cameras revert. The free scan names the cameras that will roll back and how many applications '+
+        'are at fault on each.</p>'+
+        '<a class="ck-go" href="#scanner">How the scanner works &rarr;</a></div>';
     }
     out.innerHTML=html;
   }
