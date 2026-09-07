@@ -31,6 +31,38 @@ which cameras survive an AXIS OS upgrade. Read-only against every camera it find
 - `sync.mjs` — pulls engine.ts, report.ts and rules.json from their single homes
   and stamps each with a "synced copy, do not edit here" header.
 
+## Open: how does this app declare A1 compatibility?
+
+Rule A1 — the rule this product exists to enforce — says AXIS OS 13 requires every
+ACAP to declare which OS majors it supports. **We cannot currently comply**, and
+that is a finding worth keeping.
+
+`compatibleOsVersions` in `acapPackageConf.setup` fails the build. The ACAP Native
+SDK 12.6.0 validates against manifest **schema 1.7.4**, whose `setup` object sets
+`additionalProperties: false` and permits only:
+
+    appId  appName  architecture  embeddedSdkVersion  friendlyName
+    runMode  runOptions  user  vendor  vendorUrl  version
+
+No `compatibleOsVersions`, and no `vendorId` either — the signing guidance that
+suggested both was wrong for this SDK. Both are removed from the manifest so the
+package builds.
+
+The field is real, though: the bench Q1656 reports `<CompatibleOsVersions>` for
+camoverlay (11–13) and AXIS Image Health Analytics (12.11–13). So a newer SDK, or a
+newer `schemaVersion`, supports it. Three attempts at the Axis manifest-schema
+reference did not confirm which — don't guess, check the schemas shipped inside a
+newer SDK image:
+
+```sh
+docker run --rm axisecp/acap-native-sdk:12.11.0-aarch64-ubuntu24.04 \
+  ls /opt/axis/acapsdk/sysroots/x86_64-pokysdk-linux/usr/lib/python3*/dist-packages/*manifest*/ 2>/dev/null
+# or find the bundled schema json and grep it
+```
+
+Until then this package is not A1-compliant, which is worth saying out loud: the
+scanner would flag itself, correctly, on an OS 13 camera.
+
 ## Not done
 
 - **Licence signing.** `LICENCE_PUBLIC_KEY` in `licence.ts` is empty, so

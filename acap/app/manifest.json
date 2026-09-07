@@ -8,13 +8,7 @@
       "version": "0.1.0",
       "architecture": "aarch64",
       "runMode": "respawn",
-      "vendorId": "19f191bb41",
-      "compatibleOsVersions": [
-        {
-          "min": "11.8",
-          "max": "13"
-        }
-      ]
+      "vendorUrl": "https://preflight.4xs.dev"
     },
     "configuration": {
       "settingPage": "index.html",
