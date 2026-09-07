@@ -289,6 +289,8 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
 .ck-out{display:grid;gap:10px}
 .ck-card{border-left:3px solid var(--line);background:var(--bg);border-radius:0 7px 7px 0;padding:13px 16px}
 .ck-card.bad{border-left-color:var(--a);background:var(--a-bg)}
+.ck-card.nopath{border-left-color:var(--c);background:var(--c-bg)}
+.ck-card.nopath b{color:var(--c)}
 .ck-card.warn{border-left-color:var(--b);background:var(--b-bg)}
 .ck-card.ok{border-left-color:var(--c);background:var(--c-bg)}
 .ck-card h4{margin:0 0 4px;font-size:15px}
@@ -513,29 +515,65 @@ ${bySection}
 
       var listed = hit32.length ? ' Axis also names it directly: '+hit32.join(', ')+'.' : '';
 
-      if(chip==='ARTPEC-8' || chip==='ARTPEC-9'){
-        html+=card('ok','64-bit — not exposed to the Y2038 ABI break',
-          chipModel+' is '+chip+', which runs 64-bit ACAPs (aarch64). The time_t change in AXIS OS 13 does '+
-          'not force a rebuild here.'+listed,'A5');
-      } else if(chip==='ARTPEC-6/7'){
-        html+=card('bad','32-bit — exposed to the Y2038 ABI break',
-          chipModel+' is '+chip+', which runs 32-bit ACAPs (armv7hf). AXIS OS 13 moves to 64-bit time_t, so '+
-          'every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.'+
-          (hit32.length ? listed : ' Note that Axis does not name this model on its 32-bit list — the bench '+
-          'confirmed an M1137 reporting armv7hf while absent from it, which is why this checks the chipset.'),'A5');
+      // The question people actually have is not "is this 32-bit" but "does this
+      // camera get AXIS OS 13 at all", and the two have opposite answers for
+      // ARTPEC-6. Axis: "AXIS OS 13 won't support Artpec-6 products." Its
+      // published list of 32-bit products that DO get AXIS OS 13 is therefore the
+      // dividing line, not the chipset.
+      var onList = hit32.length > 0;
+      var SIXTY_FOUR = { 'ARTPEC-8':1, 'ARTPEC-9':1, 'Ambarella CV25':1 };
+      var OLD_32 = { 'ARTPEC-6/7':1, 'ARTPEC-5':1, 'ARTPEC-4':1, 'ARTPEC-3':1,
+                     'Ambarella S3L':1, 'Ambarella S2L':1, 'Ambarella S2E':1, 'Ambarella A5S':1 };
+
+      if(chip && SIXTY_FOUR[chip]){
+        html+=card('ok','Gets AXIS OS 13 — and no rebuild needed',
+          chipModel+' is '+chip+', which is 64-bit (aarch64). It is on the AXIS OS 13 track, and the '+
+          'Y2038 change to 64-bit time_t does not force an ACAP rebuild here. What matters for this camera '+
+          'is its installed applications, not its hardware.','A5');
+      } else if(onList){
+        html+=card('bad','Gets AXIS OS 13 — every ACAP must be rebuilt first',
+          'Axis names '+hit32.join(', ')+' among the 32-bit products that will receive AXIS OS 13. That '+
+          'means the Y2038 ABI break is real for this camera: every ACAP on it must be rebuilt against '+
+          '64-bit time_t or removed before you upgrade, or the upgrade rolls back.','A5');
+      } else if(chip && OLD_32[chip]){
+        // Absence from the list is not enough on its own: it omits big ARTPEC-7
+        // families like the P1375 and P3245, and ARTPEC-7 is not the generation
+        // Axis says is unsupported. What settles it is the track the camera is
+        // actually on — an ARTPEC-7 product has been offered AXIS OS 11 and 12,
+        // an ARTPEC-6 product is capped on 10.12. So the answer needs the
+        // firmware, and without it this hedges rather than guessing.
+        var maj0 = v ? parseInt(v,10) : null;
+        if(maj0 !== null && maj0 <= 10){
+          html+=card('nopath','No AXIS OS 13 for this camera',
+            chipModel+' is '+chip+' and 32-bit, Axis does not name it among the 32-bit products that will '+
+            'receive AXIS OS 13, and on AXIS OS '+v+' it was never offered AXIS OS 11 either — a closed '+
+            'track. Axis also states that AXIS OS 13 will not support ARTPEC-6 products. Nothing to prepare: '+
+            'no application change makes AXIS OS 13 available on this hardware. Confirm with Axis before you '+
+            'budget for replacements.','A9');
+        } else if(maj0 !== null){
+          html+=card('warn','Not on the AXIS OS 13 list — ask Axis for this model',
+            chipModel+' is '+chip+' and 32-bit, and Axis does not name it among the 32-bit products that will '+
+            'receive AXIS OS 13. But it is on the active AXIS OS track, and that list omits several ARTPEC-7 '+
+            'families, so absence from it is not proof there is no upgrade. Ask Axis before planning either '+
+            'application work or replacement.','A9');
+        } else {
+          html+=card('warn','Depends on which AXIS OS it runs today',
+            chipModel+' is '+chip+' and 32-bit, and Axis does not name it among the 32-bit products getting '+
+            'AXIS OS 13. Pick the current AXIS OS above: still on 10 means it never got AXIS OS 11 '+
+            'either and there is no AXIS OS 13 coming; on 11 or 12 it is on the active track and its status '+
+            'is simply unpublished.','A9');
+        }
       } else if(chip){
-        html+=card('warn','Older or non-ARTPEC platform — check the lifecycle first',
-          chipModel+' is '+chip+'. Before worrying about breaking changes, confirm this product receives '+
-          'current AXIS OS releases at all; many older platforms are on a long-term-support track and will '+
-          'never be offered AXIS OS 13. Read Properties.System.Architecture on the device for the definitive answer.','A5');
-      } else if(hit32.length){
-        html+=card('bad','32-bit — exposed to the Y2038 ABI break',
-          'Axis lists '+hit32.join(', ')+' among the 32-bit products. AXIS OS 13 moves to 64-bit time_t, so '+
-          'every ACAP on this camera must be rebuilt against the new ABI or removed before you upgrade.','A5');
+        html+=card('warn','Check the upgrade path for this platform',
+          chipModel+' is '+chip+', which is not on the list of chips the ACAP Native SDK targets, so '+
+          'whether it receives AXIS OS 13 cannot be answered from here. Ask Axis, or read '+
+          'Properties.System.Architecture and compare the model against the list under rule A5.','A9');
       } else {
         html+=card('','Model not recognised',
-          'Not in the chipset table, and not named on the Axis 32-bit list either. Read '+
-          'Properties.System.Architecture on the device — armv7hf is exposed, aarch64 is not.','A5');
+          'Not in the chipset table, and not named on the Axis list of 32-bit products getting AXIS OS 13. '+
+          'Read Properties.System.Architecture on the device: aarch64 is on the AXIS OS 13 track; armv7hf '+
+          'gets AXIS OS 13 if the model appears on that list, and otherwise depends on whether it ever '+
+          'received AXIS OS 11.','A9');
       }
       if(hitNV.length){
         html+=card('warn','Non-video product — StreamCache.Size is removed',

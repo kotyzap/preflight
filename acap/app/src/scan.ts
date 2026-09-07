@@ -326,8 +326,24 @@ export function summarise(cams: ScannedCamera[]) {
     return {
         cameras: cams.length,
         rollback: cams.filter((c) => v(c) === 'will-roll-back').length,
-        unknown: cams.filter((c) => v(c) === 'unknown' || (c.result?.unknown ?? 0) > 0).length,
+        // Counted separately because the action is a purchase, not a fix.
+        noPath: cams.filter((c) => v(c) === 'no-upgrade-path').length,
+        unknown: cams.filter(
+            (c) => (v(c) === 'unknown' || (c.result?.unknown ?? 0) > 0) && v(c) !== 'no-upgrade-path'
+        ).length,
         clean: cams.filter((c) => v(c) === 'will-upgrade').length,
+        /** Models with no AXIS OS 13 path, with counts — the replacement list. */
+        noPathModels: Object.entries(
+            cams
+                .filter((c) => v(c) === 'no-upgrade-path')
+                .reduce<Record<string, number>>((acc, c) => {
+                    const k = c.product ?? 'unknown model';
+                    acc[k] = (acc[k] ?? 0) + 1;
+                    return acc;
+                }, {})
+        )
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([model, count]) => ({ model, count })),
         applications: new Set(
             cams.flatMap((c) =>
                 (c.result?.findings ?? [])

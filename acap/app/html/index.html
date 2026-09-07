@@ -69,7 +69,7 @@ button.go[disabled]{opacity:.5;cursor:default}
 button.ghost{background:var(--surface);border:1px solid var(--line);color:var(--ink);
   border-radius:6px;padding:10px 16px;font:14px inherit;cursor:pointer}
 .msg{font-size:13px;color:var(--muted)}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
 .tile b{display:block;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
 .tile span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
@@ -82,6 +82,8 @@ td.ip{font-family:var(--mono)}
 .v{display:inline-block;font:600 11px var(--mono);padding:3px 7px;border-radius:4px;white-space:nowrap}
 .v-bad{background:var(--a-bg);color:var(--a)} .v-unk{background:var(--b-bg);color:var(--b)}
 .v-ok{background:var(--ok-bg);color:var(--ok)} .v-none{background:var(--code);color:var(--muted)}
+.v-nopath{background:var(--c-bg);color:var(--c)}
+.tile.nopath b{color:var(--c)}
 /* The collapsed row stays a table row; the expansion is its own full-width row.
    Findings used to render inside the last cell, which squeezed 15 of them into a
    column the width of the word "Detail". */
@@ -104,6 +106,8 @@ tr.exp>td{padding:0 0 14px;border-bottom:1px solid var(--line)}
 .kick.unk h5{color:var(--b)}
 .kick.ok{border-left-color:var(--ok);background:var(--ok-bg)}
 .kick.ok h5{color:var(--ok)}
+.kick.nopath{border-left-color:var(--c);background:var(--c-bg)}
+.kick.nopath h5{color:var(--c)}
 .fleetkick{margin:0 0 14px}
 .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);
   margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
@@ -129,6 +133,7 @@ tr.exp>td{padding:0 0 14px;border-bottom:1px solid var(--line)}
 code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(--mono)}
 .bar{height:4px;background:var(--code);border-radius:2px;overflow:hidden;margin-top:10px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+@media(max-width:1200px){.tiles{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:680px){.grid,.grid-3,.tiles{grid-template-columns:1fr}
   .cred{grid-template-columns:1fr 1fr auto}}
 </style>
@@ -141,7 +146,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="1.0.0">1.0.0</span>
+  <span class="ver" id="ver" data-page="1.1.0">1.1.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -298,6 +303,9 @@ same one every VMS on the network sends, which asks devices to state their model
   function render() { get('/results').then(draw); }
 
   var VERDICT = {
+    // Its own colour, because it is its own kind of answer: not a risk to manage
+    // but a fact to budget for.
+    'no-upgrade-path': ['v-nopath', 'No AXIS OS 13'],
     'will-roll-back': ['v-bad', 'Will roll back'],
     'unknown': ['v-unk', 'Cannot be determined'],
     'will-lose-function': ['v-unk', 'Will lose function'],
@@ -362,6 +370,18 @@ same one every VMS on the network sends, which asks devices to state their model
     f.forEach(function (x) { if (x.application && x.severity === 'blocking' && !apps[x.application]) { apps[x.application] = 1; n++; } });
     var verdict = c.result.verdict;
     var fw = c.firmware ? 'AXIS OS ' + esc(c.firmware) : 'its current firmware';
+
+    // Checked first: everything below assumes an upgrade is coming, and for this
+    // camera it is not. The old text told the owner of an ARTPEC-6 camera to
+    // "upgrade it to the newest AXIS OS 12 first" — there is no AXIS OS 12 for it.
+    if (verdict === 'no-upgrade-path') {
+      return { tone: 'nopath', title: 'AXIS OS ' + target + ' is not coming to this camera',
+        text: 'It is 32-bit, Axis does not list it among the 32-bit products that will get AXIS OS ' + target
+          + ', and it is still on AXIS OS 10 — so it was never offered AXIS OS 11 either. Axis also says '
+          + 'AXIS OS 13 will not support ARTPEC-6 products. Nothing to prepare here and no application '
+          + 'change that helps: it keeps running ' + fw + ' until you replace it. '
+          + 'Worth confirming with Axis before you budget for new hardware.' };
+    }
 
     if (verdict === 'will-roll-back') {
       if (n) {
@@ -451,17 +471,35 @@ same one every VMS on the network sends, which asks devices to state their model
    */
   function fleetKicker(s) {
     var bad = s.rollback || 0, unk = s.unknown || 0, apps = s.applications || 0;
+    var np = s.noPath || 0;
+
+    // Said first and separately, because it is the only number here that is a
+    // purchase rather than a task, and it does not belong buried in a rollback
+    // count where somebody will try to fix it.
+    var nopathLine = '';
+    if (np) {
+      var models = (s.noPathModels || []).map(function (m) {
+        return esc(m.model) + (m.count > 1 ? ' \u00d7' + m.count : '');
+      }).join(', ');
+      nopathLine = kicker({ tone: 'nopath',
+        title: np + ' camera' + (np === 1 ? '' : 's') + ' will not get AXIS OS 13 at all',
+        text: (models ? models + '. ' : '')
+          + 'These are 32-bit models Axis does not list as receiving AXIS OS 13, still on AXIS OS 10 and so '
+          + 'never offered AXIS OS 11 either. Axis says AXIS OS 13 will not support ARTPEC-6 products. No '
+          + 'application work changes that — they stay on their current firmware until they are replaced. '
+          + 'Everything below is about the cameras that can move.' });
+    }
     if (!bad && !unk) {
-      return kicker({ tone: 'ok', title: 'Nothing found to stop this upgrade',
+      return nopathLine + kicker({ tone: 'ok', title: 'Nothing found to stop this upgrade',
         text: 'All ' + (s.cameras || 0) + ' cameras answered and none of them trip a rule. Go ahead.' });
     }
     if (!bad) {
-      return kicker({ tone: 'unk', title: unk + ' camera' + (unk === 1 ? '' : 's') + ' could not be checked',
+      return nopathLine + kicker({ tone: 'unk', title: unk + ' camera' + (unk === 1 ? '' : 's') + ' could not be checked',
         text: 'Nothing found a reason to roll back — but an unchecked camera is not a safe camera. '
           + 'Work through those rows before you commit to a maintenance window.' });
     }
     var t = bad + ' of ' + (s.cameras || 0) + ' cameras will roll back';
-    return kicker({ tone: 'bad', title: t,
+    return nopathLine + kicker({ tone: 'bad', title: t,
       text: (apps
         ? 'Start with the applications, not the cameras: ' + apps + ' application'
           + (apps === 1 ? ' is' : 's are') + ' responsible across the fleet, and a fleet is usually the same few '
@@ -478,6 +516,8 @@ same one every VMS on the network sends, which asks devices to state their model
     var s = d.summary || {};
     var h = '<div class="tiles">' +
       '<div class="tile bad"><b>' + (s.rollback || 0) + '</b><span>will roll back</span></div>' +
+      // Fifth tile, and the only one whose number is a budget line.
+      '<div class="tile nopath"><b>' + (s.noPath || 0) + '</b><span>no AXIS OS 13</span></div>' +
       '<div class="tile unk"><b>' + (s.unknown || 0) + '</b><span>unverified</span></div>' +
       '<div class="tile ok"><b>' + (s.clean || 0) + '</b><span>will upgrade</span></div>' +
       '<div class="tile"><b>' + (s.cameras || 0) + '</b><span>cameras found</span></div>' +

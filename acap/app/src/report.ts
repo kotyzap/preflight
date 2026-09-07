@@ -2,6 +2,10 @@
 // Source of truth: axis-cli/src/preflight/report.ts
 // Re-run `node sync.mjs` after changing it there.
 
+// SYNCED COPY — do not edit here.
+// Source of truth: axis-cli/src/preflight/report.ts
+// Re-run `node sync.mjs` after changing it there.
+
 /**
  * Customer-facing upgrade report.
  *
@@ -49,6 +53,13 @@ const esc = (s: unknown) =>
     String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 const VERDICT_COPY: Record<string, { label: string; cls: string; meaning: string }> = {
+    'no-upgrade-path': {
+        label: 'No AXIS OS 13',
+        cls: 'v-nopath',
+        meaning:
+            'Axis publishes no AXIS OS 13 for this hardware, and it never received AXIS OS 11 either. ' +
+            'Nothing to prepare; it stays on its current firmware until it is replaced.',
+    },
     'will-roll-back': {
         label: 'Will roll back',
         cls: 'v-bad',
@@ -162,12 +173,23 @@ function cameraSection(c: ReportCamera, input: ReportInput): string {
 
 export function renderReport(input: ReportInput): string {
     const cams = input.cameras;
+    // Excludes cameras with no AXIS OS 13 path: they are counted and explained
+    // separately, and a rollback figure that includes them overstates the work.
     const rollback = cams.filter((c) => c.result?.verdict === 'will-roll-back');
     // Cameras carrying ANY unverifiable check, not just those whose overall verdict
     // is unknown — a camera can roll back for one reason and still have checks that
     // could not be made.
     const withUnknowns = cams.filter((c) => (c.result?.unknown ?? 0) > 0);
     const clean = cams.filter((c) => c.result?.verdict === 'will-upgrade');
+    // Kept apart from every other group in this report on purpose. These cameras
+    // are not a risk to manage or a task to schedule — they are a line in next
+    // year's budget, and mixing them into the rollback count means somebody
+    // spends a morning trying to fix hardware that cannot be fixed.
+    const stranded = cams.filter((c) => c.result?.verdict === 'no-upgrade-path');
+    const strandedByModel = [...stranded.reduce((m, c) => {
+        const k = c.product ?? 'Unidentified model';
+        return m.set(k, (m.get(k) ?? 0) + 1);
+    }, new Map<string, number>())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     const unreachable = cams.filter((c) => !c.reachable);
 
     // The number the reader acts on: distinct applications to deal with, across
@@ -240,6 +262,13 @@ td{padding:7px 8px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
 .v-bad{background:var(--bad-bg);color:var(--bad)}
 .v-unk{background:var(--unk-bg);color:var(--unk)}
 .v-warn{background:var(--unk-bg);color:var(--unk)}
+.v-nopath{background:#eef2fb;color:#1d4ed8}
+.headline.nopath{border-left-color:#1d4ed8;background:#eef2fb}
+table.replace{width:100%;border-collapse:collapse;margin-top:8px;font-size:10pt}
+table.replace th{text-align:left;border-bottom:1px solid #333;padding:0 8px 4px 0;font-size:8.5pt;
+  text-transform:uppercase;letter-spacing:.05em}
+table.replace td{padding:4px 8px 4px 0;border-bottom:1px solid #e2e2dd}
+table.replace td.n{text-align:right;font-variant-numeric:tabular-nums;width:5em}
 .v-ok{background:var(--ok-bg);color:var(--ok)}
 
 /* per-camera detail */
@@ -316,10 +345,33 @@ Nothing was installed or changed on any device.</p>
 
 <div class="tiles">
   <div class="tile bad"><b>${rollback.length}</b><span>will roll back</span></div>
+  ${stranded.length ? `<div class="tile nopath"><b>${stranded.length}</b><span>no AXIS OS 13</span></div>` : ''}
   <div class="tile unk"><b>${withUnknowns.length}</b><span>with unverified checks</span></div>
   <div class="tile ok"><b>${clean.length}</b><span>will upgrade</span></div>
   <div class="tile"><b>${appsToFix.size}</b><span>apps to fix</span></div>
 </div>
+
+${
+    stranded.length
+        ? `<div class="headline nopath">
+  <p><strong>${stranded.length} of these ${cams.length} camera${cams.length === 1 ? '' : 's'} cannot run AXIS OS
+  ${input.targetOsMajor} at all.</strong> They are 32-bit models that Axis does not list as receiving AXIS OS
+  ${input.targetOsMajor}, and they are still on AXIS OS 10 — so they were never offered AXIS OS 11 either.
+  Axis states that AXIS OS 13 will not support ARTPEC-6 products. No application work changes this: they keep
+  running their current firmware until they are replaced. Everything else in this report concerns the cameras
+  that can move.</p>
+  <table class="replace">
+    <thead><tr><th>Model</th><th class="n">Cameras</th></tr></thead>
+    <tbody>${strandedByModel
+        .map(([m, n]) => `<tr><td>${esc(m)}</td><td class="n">${n}</td></tr>`)
+        .join('')}</tbody>
+  </table>
+  <p style="margin-top:8px">Confirm the upgrade path for these models with Axis before committing to
+  replacement. Source for the list this is checked against:
+  <span class="mono">https://help.axis.com/en-us/axis-os</span></p>
+</div>`
+        : ''
+}
 
 <h2>Fleet</h2>
 <table class="fleet">

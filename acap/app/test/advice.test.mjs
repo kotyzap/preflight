@@ -42,13 +42,15 @@ const shapes = {
     clean: { host: 'x', firmware: '12.11.77', result: { verdict: 'will-upgrade', unknown: 0, findings: [] } },
     unknowns: { host: 'x', firmware: '10.12.300', result: { verdict: 'unknown', unknown: 2, findings: [
         { rule: 'A1', severity: 'unknown' }] } },
+    noPath: { host: 'x', product: 'M1137', firmware: '10.12.300', result: {
+        verdict: 'no-upgrade-path', unknown: 0, findings: [{ rule: 'A9', severity: 'blocking' }] } },
 };
 
 test('every camera shape gets a next action', () => {
     for (const [name, c] of Object.entries(shapes)) {
         const a = api.advice(c, 13);
         assert.ok(a && a.title && a.text, `${name} got no advice`);
-        assert.ok(['bad', 'unk', 'ok'].includes(a.tone), `${name} has tone ${a.tone}`);
+        assert.ok(['bad', 'unk', 'ok', 'nopath'].includes(a.tone), `${name} has tone ${a.tone}`);
     }
 });
 
@@ -78,6 +80,26 @@ test('an unreadable camera is never described as safe', () => {
         assert.equal(a.tone, 'unk', 'unreadable must not read as ok');
         assert.doesNotMatch(a.text, /\bis safe\b/);
     }
+});
+
+test('a stranded camera is never told to upgrade to something that does not exist', () => {
+    // The bug this replaces: an ARTPEC-6 camera was told to "upgrade it to the
+    // newest AXIS OS 12 first and scan again". There is no AXIS OS 12 for it.
+    const a = api.advice(shapes.noPath, 13);
+    assert.equal(a.tone, 'nopath');
+    assert.doesNotMatch(a.text, /upgrade it to/i);
+    assert.doesNotMatch(a.text, /rebuild/i, 'no application work helps');
+    assert.match(a.text, /confirming with Axis/i, 'must not order a replacement on its own authority');
+});
+
+test('the fleet line separates purchases from tasks', () => {
+    const k = api.fleetKicker({ cameras: 5, rollback: 2, unknown: 0, applications: 3,
+        noPath: 2, noPathModels: [{ model: 'M1137', count: 2 }] });
+    assert.match(k, /kick nopath/);
+    assert.match(k, /will not get AXIS OS 13 at all/);
+    assert.match(k, /M1137 \u00d72|M1137 ×2/);
+    // Both messages must be present: the stranded ones AND the fixable ones.
+    assert.match(k, /applications, not the cameras/);
 });
 
 test('no article glued to a model name', () => {

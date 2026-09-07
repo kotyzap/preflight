@@ -43,6 +43,9 @@ const banner = (from) =>
   `// Re-run \`node sync.mjs\` after changing it there.\n\n`;
 
 for (const [rel, dest] of [
+  // os13.ts is pure data + one pure function, and the engine imports it. It has
+  // to travel with the engine or the CLI compiles against a file that is not there.
+  ['src/preflight/os13.ts', 'os13.ts'],
   ['src/preflight/engine.ts', 'engine.ts'],
   ['src/preflight/report.ts', 'report.ts'],
 ]) {

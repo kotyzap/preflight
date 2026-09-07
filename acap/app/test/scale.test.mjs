@@ -70,6 +70,11 @@ test('the summary is counts only, so it does not grow with the fleet', () => {
     assert.equal(s.cameras, 250);
     assert.equal(s.rollback, 250);
     // This is what /status polls during a scan; it must stay a handful of numbers.
-    assert.ok(JSON.stringify(s).length < 200, 'summary must not carry per-camera data');
-    assert.ok(Object.values(s).every((v) => typeof v === 'number'));
+    // noPathModels is the one non-scalar, and it is bounded by the number of
+    // distinct models rather than the number of cameras — a fleet is a handful of
+    // models repeated, which is the whole premise of the report.
+    const { noPathModels, ...counts } = s;
+    assert.ok(JSON.stringify(counts).length < 200, 'summary counts must not carry per-camera data');
+    assert.ok(Object.values(counts).every((v) => typeof v === 'number'));
+    assert.deepEqual(noPathModels, [], 'nothing stranded in this fleet');
 });
