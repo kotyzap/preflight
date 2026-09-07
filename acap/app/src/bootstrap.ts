@@ -19,30 +19,54 @@ const SETTINGS_FILE = path.join(DATA, 'settings.json');
 const RESULTS_FILE = path.join(DATA, 'results.json');
 const HTML_DIR = path.join(__dirname, '..', 'html');
 
-/** The running package's version. Read, not compiled in, so it cannot drift. */
+/**
+ * The running package's version.
+ *
+ * From manifest.json, not package.json: package.conf's OTHERFILES lists only
+ * dist, bin and node_modules, so package.json is not in the .eap at all and
+ * reading it gave "unknown" on the camera while working perfectly in dev. The
+ * manifest is always in the package — the device itself reads it at install.
+ */
 const VERSION: string = (() => {
-    try {
-        return require(path.join(__dirname, '..', 'package.json')).version ?? 'unknown';
-    } catch {
-        return 'unknown';
+    for (const p of ['manifest.json', path.join('..', 'manifest.json')]) {
+        try {
+            const m = JSON.parse(fs.readFileSync(path.join(__dirname, '..', p), 'utf8'));
+            const v = m?.acapPackageConf?.setup?.version;
+            if (v) return String(v);
+        } catch {
+            /* try the next location */
+        }
     }
+    return 'unknown';
 })();
 
 type Settings = {
-    user: string;
-    pass: string;
+    /**
+     * Several credential sets, tried in order per camera.
+     *
+     * One password for a whole fleet is the exception, not the rule: cameras
+     * commissioned in different years, by different installers, under different
+     * password policies. A single field made every one of those a "credentials
+     * refused" row the operator could do nothing about.
+     */
+    credentials: { user: string; pass: string }[];
     targetOsMajor: number;
     concurrency: number;
     licenceKey: string;
 };
 
-const DEFAULTS: Settings = { user: '', pass: '', targetOsMajor: 13, concurrency: 12, licenceKey: '' };
+const DEFAULTS: Settings = { credentials: [], targetOsMajor: 13, concurrency: 12, licenceKey: '' };
 
 function readSettings(): Settings {
     try {
-        return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
+        const raw = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+        const s: Settings = { ...DEFAULTS, ...raw };
+        // Settings written by 0.1–0.3 held a single user/pass pair.
+        if (!Array.isArray(raw.credentials) && raw.user) s.credentials = [{ user: raw.user, pass: raw.pass ?? '' }];
+        s.credentials = (s.credentials ?? []).filter((c) => c && c.user);
+        return s;
     } catch {
-        return { ...DEFAULTS };
+        return { ...DEFAULTS, credentials: [] };
     }
 }
 
@@ -87,11 +111,13 @@ async function startScan() {
         progress = { done: 0, total: 0, found: 0, running: false };
         return;
     }
+    // Including this camera. It is a camera on the network like any other, and it
+    // is the one the operator is looking at — leaving it out of its own report was
+    // just wrong.
     const hosts = hostsFor(net.address, net.netmask);
     progress = { done: 0, total: hosts.length, found: 0, running: true };
 
-    const creds = s.user ? { user: s.user, pass: s.pass } : null;
-    results = await scanSubnet(hosts, creds, s.targetOsMajor, s.concurrency, (p) => {
+    results = await scanSubnet(hosts, s.credentials, s.targetOsMajor, s.concurrency, (p) => {
         progress = p;
     });
     lastScan = new Date().toISOString();
@@ -141,11 +167,21 @@ const server = http.createServer(async (req, res) => {
         if (route === '/settings') {
             if (req.method === 'POST') {
                 const incoming = JSON.parse((await readBody(req)) || '{}');
+                const rows: { user?: unknown; pass?: unknown }[] = Array.isArray(incoming.credentials)
+                    ? incoming.credentials
+                    : [];
                 const next: Settings = {
-                    user: String(incoming.user ?? s.user),
-                    // An empty password field means "unchanged", so saving other
-                    // settings does not silently wipe stored credentials.
-                    pass: incoming.pass ? String(incoming.pass) : s.pass,
+                    // A blank password means "unchanged", matched by username rather
+                    // than by row index — rows move when one is removed, and index
+                    // matching would quietly reassign passwords to the wrong user.
+                    credentials: rows
+                        .map((r) => ({ user: String(r.user ?? '').trim(), pass: String(r.pass ?? '') }))
+                        .filter((r) => r.user)
+                        .map((r) => ({
+                            user: r.user,
+                            pass: r.pass || s.credentials.find((o) => o.user === r.user)?.pass || '',
+                        }))
+                        .slice(0, 12),
                     targetOsMajor: Number(incoming.targetOsMajor ?? s.targetOsMajor) || 13,
                     concurrency: Math.min(32, Math.max(1, Number(incoming.concurrency ?? s.concurrency) || 12)),
                     licenceKey: String(incoming.licenceKey ?? s.licenceKey),
@@ -153,10 +189,9 @@ const server = http.createServer(async (req, res) => {
                 writeSettings(next);
                 return json(res, 200, { ok: true });
             }
-            // Never return the stored password, only whether one is set.
+            // Never return a stored password, only whether one is set.
             return json(res, 200, {
-                user: s.user,
-                hasPass: Boolean(s.pass),
+                credentials: s.credentials.map((c) => ({ user: c.user, hasPass: Boolean(c.pass) })),
                 targetOsMajor: s.targetOsMajor,
                 concurrency: s.concurrency,
                 licenceKey: s.licenceKey,

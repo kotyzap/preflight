@@ -68,9 +68,9 @@ export function hostsFor(address: string, netmask: string): string[] {
     const bits = mask.reduce((n, b) => n + (b >>> 0).toString(2).split('1').length - 1, 0);
     if (bits < 24) {
         // Wider than a /24: scan only the local /24 around this camera.
-        return Array.from({ length: 254 }, (_, i) => `${oct[0]}.${oct[1]}.${oct[2]}.${i + 1}`).filter(
-            (h) => h !== address
-        );
+        // This camera is included: it is a camera on the network like any other,
+        // and it is the one whose report the operator is reading.
+        return Array.from({ length: 254 }, (_, i) => `${oct[0]}.${oct[1]}.${oct[2]}.${i + 1}`);
     }
     const size = 2 ** (32 - bits);
     const base = ((oct[0] << 24) | (oct[1] << 16) | (oct[2] << 8) | oct[3]) >>> 0;
@@ -78,8 +78,7 @@ export function hostsFor(address: string, netmask: string): string[] {
     const out: string[] = [];
     for (let i = 1; i < size - 1; i++) {
         const n = (net + i) >>> 0;
-        const h = `${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`;
-        if (h !== address) out.push(h);
+        out.push(`${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`);
     }
     return out;
 }
@@ -131,12 +130,28 @@ export function parseApplications(xml: string) {
     return apps;
 }
 
-async function scanHost(host: string, creds: Credentials | null, targetOsMajor: number): Promise<ScannedCamera | null> {
+async function scanHost(
+    host: string,
+    credentials: Credentials[],
+    targetOsMajor: number
+): Promise<ScannedCamera | null> {
     // HTTPS first — from AXIS OS 13 port 80 is off by factory default — then HTTP
     // for the older cameras, which are the ones most likely to be at risk.
     for (const origin of [`https://${host}`, `http://${host}`]) {
-        const brand = await vapixGet(origin, ENDPOINTS[0], creds, 3000);
-        if (brand.status === 0) continue;
+        // Try each credential set until one is accepted. Fleets are commissioned
+        // over years by different people under different password policies, so one
+        // password for every camera is the exception. `null` goes first because
+        // some paths answer unauthenticated, and trying it costs one request.
+        let brand: { status: number; body: string } | null = null;
+        let creds: Credentials | null = null;
+        for (const candidate of [null, ...credentials]) {
+            const r = await vapixGet(origin, ENDPOINTS[0], candidate, 3000);
+            if (r.status === 0) break; // nothing is listening; the next origin may be
+            brand = r;
+            creds = candidate;
+            if (r.status !== 401) break;
+        }
+        if (!brand || brand.status === 0) continue;
         if (brand.status === 401) {
             return {
                 host,
@@ -146,7 +161,10 @@ async function scanHost(host: string, creds: Credentials | null, targetOsMajor: 
                 architecture: null,
                 serial: null,
                 result: null,
-                note: 'Responded, but the credentials were refused.',
+                note:
+                    credentials.length === 0
+                        ? 'Responded, but no credentials were configured for it.'
+                        : `Responded, but none of the ${credentials.length} configured credential sets were accepted.`,
             };
         }
         if (brand.status !== 200 || !/=/.test(brand.body)) continue;
@@ -200,7 +218,7 @@ async function scanHost(host: string, creds: Credentials | null, targetOsMajor: 
  */
 export async function scanSubnet(
     hosts: string[],
-    creds: Credentials | null,
+    credentials: Credentials[],
     targetOsMajor: number,
     concurrency: number,
     onProgress: (p: ScanProgress) => void
@@ -213,7 +231,7 @@ export async function scanSubnet(
         for (;;) {
             const idx = i++;
             if (idx >= hosts.length) return;
-            const cam = await scanHost(hosts[idx], creds, targetOsMajor).catch(() => null);
+            const cam = await scanHost(hosts[idx], credentials, targetOsMajor).catch(() => null);
             if (cam) found.push(cam);
             done++;
             if (done % 8 === 0 || done === hosts.length) {

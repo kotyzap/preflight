@@ -19,7 +19,29 @@ html[data-theme="dark"]{
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:940px;margin:0 auto;padding:22px 20px 60px}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 24px 60px}
+
+/* Two columns once there is room: controls stay put on the left while the
+   results — the part that grows — take the width. A single narrow column left
+   most of a desktop window empty and pushed the table into a gutter. */
+.cols{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+@media(min-width:1040px){
+  .cols{grid-template-columns:352px minmax(0,1fr)}
+  .side{position:sticky;top:22px}
+  .side .grid-3{grid-template-columns:1fr}
+}
+.main:empty::after{content:"Add credentials, then scan. Nothing is written to any camera.";
+  display:block;background:var(--surface);border:1px dashed var(--line);border-radius:9px;
+  padding:28px 20px;text-align:center;color:var(--muted);font-size:13.5px}
+
+/* Credential sets */
+.cred{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.cred button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;
+  width:34px;height:37px;cursor:pointer;font-size:15px;line-height:1}
+.cred button:hover{color:var(--a);border-color:var(--a)}
+button.small{background:none;border:1px dashed var(--line);color:var(--muted);border-radius:6px;
+  padding:7px 12px;font:13px inherit;cursor:pointer}
+button.small:hover{color:var(--accent);border-color:var(--accent)}
 header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
 h1{font-size:19px;margin:0;letter-spacing:-.01em}
 h1 span{color:var(--accent)}
@@ -67,7 +89,8 @@ summary{cursor:pointer;font-size:12px;color:var(--muted)}
 code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(--mono)}
 .bar{height:4px;background:var(--code);border-radius:2px;overflow:hidden;margin-top:10px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
-@media(max-width:680px){.grid,.grid-3,.tiles{grid-template-columns:1fr}}
+@media(max-width:680px){.grid,.grid-3,.tiles{grid-template-columns:1fr}
+  .cred{grid-template-columns:1fr 1fr auto}}
 </style>
 </head>
 <body>
@@ -78,20 +101,21 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.3.0">0.3.0</span>
+  <span class="ver" id="ver" data-page="0.4.0">0.4.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
 before you start it. Read-only: it lists applications and reads settings, and writes nothing to any device.</p>
 
+<div class="cols">
+<aside class="side">
 <div class="card">
-  <h2 style="margin-top:0">Credentials for the other cameras</h2>
+  <h2 style="margin-top:0">Camera credentials</h2>
   <p class="msg">Stored on this camera only, and never sent anywhere except to the cameras being checked.
-  Cameras that refuse these credentials are reported as unverified, never as safe.</p>
-  <div class="grid" style="margin-top:12px">
-    <div><label for="user">Username</label><input id="user" autocomplete="off"></div>
-    <div><label for="pass">Password</label><input id="pass" type="password" autocomplete="new-password" placeholder="unchanged"></div>
-  </div>
+  Add as many sets as your fleet uses — each camera is tried against them in order. Cameras that accept
+  none are reported as unverified, never as safe.</p>
+  <div id="creds" style="margin-top:12px"></div>
+  <button class="small" id="addcred" type="button">+ Add credentials</button>
   <div class="grid-3" style="margin-top:12px">
     <div><label for="target">Target AXIS OS</label>
       <select id="target"><option value="13">13</option><option value="12">12</option></select></div>
@@ -105,8 +129,10 @@ before you start it. Read-only: it lists applications and reads settings, and wr
   </div>
   <div class="bar"><i id="prog"></i></div>
 </div>
+</aside>
 
-<div id="out"></div>
+<main class="main" id="out"></main>
+</div>
 
 <p class="note">Every rule this app checks is published with its source at
 <a href="https://preflight.4xs.dev">preflight.4xs.dev</a>. The exact list of endpoints it requests is
@@ -134,12 +160,37 @@ shown by <code>status</code> — all GET, all read-only.</p>
 
   function get(p) { return fetch(API + p, { credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
 
+  // A blank password on an existing row means "unchanged"; the server matches it
+  // by username, so removing a row never reassigns a password to someone else.
+  function credRow(user, hasPass) {
+    var d = document.createElement('div');
+    d.className = 'cred';
+    d.innerHTML = '<div><label>Username</label><input class="cu" autocomplete="off"></div>'
+      + '<div><label>Password</label><input class="cp" type="password" autocomplete="new-password"></div>'
+      + '<button type="button" title="Remove">\u00d7</button>';
+    d.querySelector('.cu').value = user || '';
+    d.querySelector('.cp').placeholder = hasPass ? 'unchanged' : '';
+    d.querySelector('button').onclick = function () {
+      d.remove();
+      if (!$('creds').children.length) $('creds').appendChild(credRow('', false));
+    };
+    return d;
+  }
+
+  function readCreds() {
+    return [].map.call($('creds').children, function (row) {
+      return { user: row.querySelector('.cu').value.trim(), pass: row.querySelector('.cp').value };
+    }).filter(function (c) { return c.user; });
+  }
+
+  $('addcred').onclick = function () { $('creds').appendChild(credRow('', false)); };
+
   get('/settings').then(function (s) {
-    $('user').value = s.user || '';
+    var list = s.credentials && s.credentials.length ? s.credentials : [{ user: '', hasPass: false }];
+    list.forEach(function (c) { $('creds').appendChild(credRow(c.user, c.hasPass)); });
     $('target').value = String(s.targetOsMajor || 13);
     $('conc').value = s.concurrency || 12;
     $('key').value = s.licenceKey || '';
-    if (s.hasPass) $('pass').placeholder = 'unchanged';
   });
 
   $('save').onclick = function () {
@@ -148,11 +199,20 @@ shown by <code>status</code> — all GET, all read-only.</p>
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user: $('user').value, pass: $('pass').value,
+        credentials: readCreds(),
         targetOsMajor: Number($('target').value),
         concurrency: Number($('conc').value), licenceKey: $('key').value
       })
-    }).then(function () { $('msg').textContent = 'Saved.'; $('pass').value = ''; render(); });
+    }).then(function () {
+      $('msg').textContent = 'Saved.';
+      // Clear the typed passwords and mark the rows as stored, so a second save
+      // does not send blanks for credentials the server already has.
+      [].forEach.call($('creds').querySelectorAll('.cred'), function (row) {
+        var p = row.querySelector('.cp');
+        if (p.value) { p.value = ''; p.placeholder = 'unchanged'; }
+      });
+      render();
+    });
   };
 
   $('scan').onclick = function () {
