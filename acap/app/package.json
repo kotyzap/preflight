@@ -1,13 +1,13 @@
 {
   "name": "preflight-acap",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Scans an Axis camera subnet and reports which cameras survive an AXIS OS upgrade",
   "main": "dist/bootstrap.js",
   "private": true,
   "scripts": {
     "build": "node check-version.mjs && tsc && node -e \"const f=require('fs');f.copyFileSync('src/rules.json','dist/rules.json');const k='src/licence-key.pub';if(f.existsSync(k)&&f.readFileSync(k,'utf8').includes('BEGIN PUBLIC KEY')){f.copyFileSync(k,'dist/licence-key.pub');console.log('licence verification: enabled')}else console.log('licence verification: DISABLED - no valid src/licence-key.pub, this build treats every key as unlicensed')\"",
     "sync": "node ../sync.mjs",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.mjs"
   },
   "author": "Pavel Kotyza <kotyza@gmail.com>",
   "license": "SEE LICENSE IN LICENSE",

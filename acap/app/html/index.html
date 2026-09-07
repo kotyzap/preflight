@@ -89,6 +89,19 @@ button.tog .caret{display:inline-block;transition:transform .15s;margin-right:5p
 button.tog[aria-expanded="true"] .caret{transform:rotate(90deg)}
 tr.exp>td{padding:0 0 14px;border-bottom:1px solid var(--line)}
 .panel{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+/* Plain-language "what to do". The findings say what is wrong in the ruleset's
+   language; this says what to do about it in the operator's. */
+.kick{border-left:3px solid var(--muted);border-radius:0 7px 7px 0;padding:10px 14px;
+  margin:0 0 12px;background:var(--code)}
+.kick h5{margin:0 0 3px;font-size:13px}
+.kick p{margin:0;font-size:13px;color:var(--muted);line-height:1.55}
+.kick.bad{border-left-color:var(--a);background:var(--a-bg)}
+.kick.bad h5{color:var(--a)}
+.kick.unk{border-left-color:var(--b);background:var(--b-bg)}
+.kick.unk h5{color:var(--b)}
+.kick.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.kick.ok h5{color:var(--ok)}
+.fleetkick{margin:0 0 14px}
 .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);
   margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .meta b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:12px}
@@ -125,7 +138,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.6.0">0.6.0</span>
+  <span class="ver" id="ver" data-page="0.7.0">0.7.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -213,7 +226,8 @@ same one every VMS on the network sends, which asks devices to state their model
   get('/settings').then(function (s) {
     var list = s.credentials && s.credentials.length ? s.credentials : [{ user: '', hasPass: false }];
     list.forEach(function (c) { $('creds').appendChild(credRow(c.user, c.hasPass)); });
-    $('target').value = String(s.targetOsMajor || 13);
+    TARGET = Number(s.targetOsMajor) || 13;
+    $('target').value = String(TARGET);
     $('conc').value = s.concurrency || 12;
     $('key').value = s.licenceKey || '';
   });
@@ -301,9 +315,75 @@ same one every VMS on the network sends, which asks devices to state their model
     return groups;
   }
 
+  /**
+   * What to do about this camera, in the operator's words.
+   *
+   * The findings are written in the ruleset's language — rule ids, ABI breaks,
+   * compatibility declarations — because they have to be precise and citable.
+   * That is not what someone standing in a plant room at 7am needs. This says
+   * the next action and the consequence of skipping it, and nothing else.
+   *
+   * Everything here is derived from findings already on screen. It states no new
+   * facts, so it cannot contradict the ruleset.
+   */
+  function advice(c, target) {
+    if (!c.result) {
+      var known = c.onvif && (c.onvif.name || c.onvif.hardware);
+      return { tone: 'unk', title: 'Nobody could log in to this camera',
+        text: 'Open it below and try a username and password for it. '
+          // No article: the model may or may not carry the "AXIS" prefix, and
+          // "a AXIS M1137" is the kind of detail that makes a tool look sloppy.
+          + (known ? 'Discovery reports it as ' + esc(known) + ', which is all we know without a login. ' : '')
+          + 'Until it is checked, treat it as a risk — not as safe.' };
+    }
+
+    var f = c.result.findings || [];
+    var rules = {}; f.forEach(function (x) { rules[x.rule] = true; });
+    var apps = {}; var n = 0;
+    f.forEach(function (x) { if (x.application && x.severity === 'blocking' && !apps[x.application]) { apps[x.application] = 1; n++; } });
+    var verdict = c.result.verdict;
+    var fw = c.firmware ? 'AXIS OS ' + esc(c.firmware) : 'its current firmware';
+
+    if (verdict === 'will-roll-back') {
+      if (n) {
+        return { tone: 'bad', title: 'Sort out ' + n + ' application' + (n === 1 ? '' : 's') + ' first, then upgrade',
+          text: 'For each one listed below: install a version built for AXIS OS ' + target
+            + ', or remove it. Then scan again. Upgrade as it stands and the camera will put itself back on '
+            + fw + ' — and it will not tell you which application stopped it, which is the part that costs an evening.' };
+      }
+      // Free tier: the count is honest, the names are not shown.
+      if (rules.A2) {
+        return { tone: 'bad', title: 'Applications on this camera will stop the upgrade',
+          text: 'Add a licence key above to see which ones and what to do about each, or run the free '
+            + 'command-line scanner from preflight.4xs.dev, which shows the same detail.' };
+      }
+      if (rules.A5) {
+        return { tone: 'bad', title: 'This camera is 32-bit, so every application needs a rebuild',
+          text: 'Nothing you can uninstall fixes this one by itself. Ask each vendor for an AXIS OS ' + target
+            + ' build, or plan to leave this camera on ' + fw + ' — which is a perfectly good decision, so long as it is a decision.' };
+      }
+      return { tone: 'bad', title: 'Do not upgrade this camera yet',
+        text: 'Work through the findings below first, then scan again.' };
+    }
+
+    if (verdict === 'unknown' || (c.result.unknown || 0) > 0) {
+      return { tone: 'unk', title: 'This camera cannot answer the question yet',
+        text: fw + ' does not publish what its applications support, so nothing here can promise they survive. '
+          + 'Two ways forward: upgrade it to the newest AXIS OS 12 first and scan again — the rollback rule is an '
+          + 'AXIS OS 13 thing, so 12 is a safe step — or ask each application\u2019s vendor directly.' };
+    }
+
+    return { tone: 'ok', title: 'Nothing is in the way',
+      text: 'Upgrade this one whenever suits you. Worth scanning again if you install anything new first.' };
+  }
+
+  function kicker(a) {
+    return '<div class="kick ' + a.tone + '"><h5>' + a.title + '</h5><p>' + a.text + '</p></div>';
+  }
+
   function panel(c) {
     var f = (c.result && c.result.findings) || [];
-    var h = '<div class="panel">' + metaStrip(c);
+    var h = '<div class="panel">' + kicker(advice(c, TARGET)) + metaStrip(c);
     if (c.note) h += '<p class="msg" style="margin:0 0 12px">' + esc(c.note) + '</p>';
     // No result means it was never checked. Offer the credentials form here
     // rather than sending the operator back to the settings panel to add a set,
@@ -340,6 +420,36 @@ same one every VMS on the network sends, which asks devices to state their model
   }
 
   var COLS = 6;
+  var TARGET = 13;
+
+  /**
+   * The one sentence to read if you read nothing else.
+   *
+   * Applications, not cameras, are the unit of work: a fleet is usually the same
+   * few applications repeated, so one fixed application clears many cameras. An
+   * operator who starts camera-by-camera does the same job several times over.
+   */
+  function fleetKicker(s) {
+    var bad = s.rollback || 0, unk = s.unknown || 0, apps = s.applications || 0;
+    if (!bad && !unk) {
+      return kicker({ tone: 'ok', title: 'Nothing found to stop this upgrade',
+        text: 'All ' + (s.cameras || 0) + ' cameras answered and none of them trip a rule. Go ahead.' });
+    }
+    if (!bad) {
+      return kicker({ tone: 'unk', title: unk + ' camera' + (unk === 1 ? '' : 's') + ' could not be checked',
+        text: 'Nothing found a reason to roll back — but an unchecked camera is not a safe camera. '
+          + 'Work through those rows before you commit to a maintenance window.' });
+    }
+    var t = bad + ' of ' + (s.cameras || 0) + ' cameras will roll back';
+    return kicker({ tone: 'bad', title: t,
+      text: (apps
+        ? 'Start with the applications, not the cameras: ' + apps + ' application'
+          + (apps === 1 ? ' is' : 's are') + ' responsible across the fleet, and a fleet is usually the same few '
+          + 'applications repeated — so one fixed application often clears several cameras at once. '
+        : '')
+        + (unk ? unk + ' more camera' + (unk === 1 ? '' : 's') + ' could not be checked at all; do not count those as safe. ' : '')
+        + 'A rolled-back upgrade does not say which application caused it, which is why this is worth doing first.' });
+  }
 
   function draw(d) {
     var cams = d.cameras || [];
@@ -351,7 +461,7 @@ same one every VMS on the network sends, which asks devices to state their model
       '<div class="tile unk"><b>' + (s.unknown || 0) + '</b><span>unverified</span></div>' +
       '<div class="tile ok"><b>' + (s.clean || 0) + '</b><span>will upgrade</span></div>' +
       '<div class="tile"><b>' + (s.cameras || 0) + '</b><span>cameras found</span></div>' +
-      '</div><div class="card"><table><thead><tr>' +
+      '</div>' + fleetKicker(s) + '<div class="card"><table><thead><tr>' +
       '<th>Address</th><th>Model</th><th>AXIS OS</th><th>Apps</th><th>Verdict</th><th></th>' +
       '</tr></thead><tbody>';
 
@@ -389,23 +499,6 @@ same one every VMS on the network sends, which asks devices to state their model
     h += '</div>';
     $('out').innerHTML = h;
 
-    // One delegated handler rather than an inline onclick per row: the markup is
-    // built as a string, and inline handlers in a string are how escaping bugs
-    // become script injection.
-    $('out').addEventListener('click', function (ev) {
-      var t = ev.target.closest ? ev.target : null;
-      if (!t) return;
-
-      var go = t.closest('button.fgo');
-      if (go) return recheck(go);
-
-      var b = t.closest('button.tog');
-      if (!b) return;
-      var row = $('exp' + b.dataset.row);
-      if (!row) return;
-      row.hidden = !row.hidden;
-      b.setAttribute('aria-expanded', String(!row.hidden));
-    });
   }
 
   function recheck(btn) {
@@ -435,6 +528,31 @@ same one every VMS on the network sends, which asks devices to state their model
       msg.textContent = 'The request failed. Is the application still running?';
     });
   }
+
+  // ONE delegated handler, attached once at startup — deliberately NOT inside
+  // draw().
+  //
+  // draw() runs on load, after every save, and on every poll tick, and #out
+  // survives each of those (only its children are replaced). Registering the
+  // listener inside draw() therefore added a second copy on the second draw, a
+  // third on the third — and each copy flipped row.hidden, so an even number of
+  // listeners toggled the row twice and it never moved. The buttons looked dead
+  // while every handler was firing correctly. A rescan made it worse simply
+  // because polling draws more often.
+  $('out').addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+
+    var go = t.closest('button.fgo');
+    if (go) return recheck(go);
+
+    var b = t.closest('button.tog');
+    if (!b) return;
+    var row = $('exp' + b.dataset.row);
+    if (!row) return;
+    row.hidden = !row.hidden;
+    b.setAttribute('aria-expanded', String(!row.hidden));
+  });
 
   get('/status').then(function (st) {
     // The page is served statically out of the package, the version below comes from
