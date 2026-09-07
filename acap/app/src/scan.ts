@@ -8,13 +8,17 @@
  * An application that installs on one camera and probes the others is,
  * structurally, lateral movement, and a security team will read it that way.
  * Three properties are therefore load-bearing and must not be quietly relaxed:
- * every request is a GET, the endpoint list below is the complete set of paths
- * this app will ever touch, and the source is public so that claim is checkable.
+ * every camera request is a GET, the endpoint list below is the complete set of
+ * paths this app will ever touch, and the source is public so that claim is
+ * checkable. The one non-GET is the ONVIF discovery probe in onvif.ts — a single
+ * UDP multicast datagram asking devices to describe themselves — and it is
+ * declared next to the endpoints rather than tucked away.
  */
 
 import * as os from 'node:os';
 import { evaluate, Finding, PreflightResult } from './engine';
 import { Credentials, parseParams, vapixGet } from './vapix';
+import { DISCOVERY, OnvifDevice } from './onvif';
 
 /** The complete set of VAPIX paths this application requests. All GET, all read-only. */
 export const ENDPOINTS = [
@@ -22,6 +26,12 @@ export const ENDPOINTS = [
     '/axis-cgi/param.cgi?action=list&group=System.BoaGroupPolicy,Network.HTTP,Network.UPnP,Image',
     '/axis-cgi/applications/list.cgi',
 ] as const;
+
+/** The non-HTTP thing this application does, declared alongside the endpoints. */
+export const DISCOVERY_PROBE = {
+    ...DISCOVERY,
+    what: 'ONVIF WS-Discovery Probe — asks devices to state their model. No credentials, no change.',
+} as const;
 
 export type ScannedCamera = {
     host: string;
@@ -33,9 +43,18 @@ export type ScannedCamera = {
     result: PreflightResult | null;
     /** Why the application list is missing, when it is. */
     note?: string;
+    /** Model and name learned from ONVIF discovery, which needs no credentials. */
+    onvif?: { hardware: string | null; name: string | null } | null;
 };
 
-export type ScanProgress = { done: number; total: number; found: number; running: boolean };
+export type ScanProgress = {
+    done: number;
+    total: number;
+    found: number;
+    running: boolean;
+    /** Which stage the operator is watching, so the progress text can say so. */
+    phase?: 'discovering' | 'scanning' | 'done';
+};
 
 /**
  * The camera's own IPv4 network, read from the OS rather than over VAPIX.
@@ -248,6 +267,57 @@ export async function scanSubnet(
     });
     onProgress({ done: hosts.length, total: hosts.length, found: found.length, running: false });
     return found;
+}
+
+/**
+ * Fold discovery results into the scan.
+ *
+ * Two jobs, and the second is the one that makes discovery worth having:
+ *
+ * 1. Enrich. A camera that refused every credential has no model, and an address
+ *    on its own is not an inventory row. Discovery supplies the model without
+ *    credentials, so it becomes "M3085-V, could not be checked".
+ * 2. Add. A device that answered discovery but not the HTTP sweep still exists —
+ *    port 80 and 443 closed, HTTPS-only on a non-standard port, a firewall. It
+ *    was previously invisible. Silently omitting a camera is the worst thing this
+ *    application can do, so it is listed, unchecked and clearly labelled.
+ *
+ * A discovered model is never treated as a check: `result` stays null and the
+ * verdict stays unknown. Absence of evidence is not a pass.
+ */
+export function mergeOnvif(cams: ScannedCamera[], onvif: Map<string, OnvifDevice>): ScannedCamera[] {
+    const out = cams.map((c) => {
+        const d = onvif.get(c.host);
+        if (!d) return c;
+        return {
+            ...c,
+            product: c.product ?? d.hardware ?? d.name ?? null,
+            onvif: { hardware: d.hardware, name: d.name },
+        };
+    });
+
+    const seen = new Set(cams.map((c) => c.host));
+    for (const [host, d] of onvif) {
+        if (seen.has(host)) continue;
+        out.push({
+            host,
+            reachable: true,
+            product: d.hardware ?? d.name ?? null,
+            firmware: null,
+            architecture: null,
+            serial: null,
+            result: null,
+            onvif: { hardware: d.hardware, name: d.name },
+            note: 'Found by ONVIF discovery but it did not answer on HTTP or HTTPS, so nothing could be checked.',
+        });
+    }
+
+    out.sort((a, b) => {
+        const na = a.host.split('.').map(Number);
+        const nb = b.host.split('.').map(Number);
+        return na[0] - nb[0] || na[1] - nb[1] || na[2] - nb[2] || na[3] - nb[3];
+    });
+    return out;
 }
 
 /** Fleet totals the free tier is allowed to show. */

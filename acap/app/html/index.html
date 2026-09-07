@@ -86,6 +86,8 @@ summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .rid{font:600 11px var(--mono);color:var(--a);margin-right:6px}
 .locked{background:var(--b-bg);border-radius:7px;padding:14px 16px;margin-top:14px;font-size:13.5px}
 .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.src{font:600 9.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  border:1px solid var(--line);border-radius:3px;padding:1px 4px;vertical-align:1px;cursor:help}
 code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(--mono)}
 .bar{height:4px;background:var(--code);border-radius:2px;overflow:hidden;margin-top:10px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
@@ -101,7 +103,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.4.0">0.4.0</span>
+  <span class="ver" id="ver" data-page="0.5.0">0.5.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -136,7 +138,8 @@ before you start it. Read-only: it lists applications and reads settings, and wr
 
 <p class="note">Every rule this app checks is published with its source at
 <a href="https://preflight.4xs.dev">preflight.4xs.dev</a>. The exact list of endpoints it requests is
-shown by <code>status</code> — all GET, all read-only.</p>
+shown by <code>status</code> — all GET, all read-only. It also sends one ONVIF discovery probe, the
+same one every VMS on the network sends, which asks devices to state their model and changes nothing.</p>
 
 </div>
 
@@ -226,7 +229,9 @@ shown by <code>status</code> — all GET, all read-only.</p>
       var p = d.progress || {};
       $('prog').style.width = p.total ? Math.round((p.done / p.total) * 100) + '%' : '0';
       if (p.running) {
-        $('msg').textContent = 'Checked ' + p.done + ' of ' + p.total + ' addresses, ' + p.found + ' cameras found…';
+        $('msg').textContent = p.phase === 'discovering'
+          ? 'Asking the network who is out there (ONVIF discovery)…'
+          : 'Checked ' + p.done + ' of ' + p.total + ' addresses, ' + p.found + ' cameras found…';
         return setTimeout(poll, 1200);
       }
       $('scan').disabled = false;
@@ -263,7 +268,10 @@ shown by <code>status</code> — all GET, all read-only.</p>
     cams.forEach(function (c) {
       var v = c.result ? VERDICT[c.result.verdict] : ['v-none', c.note ? 'Not checked' : 'No data'];
       var f = (c.result && c.result.findings) || [];
-      h += '<tr><td class="ip">' + esc(c.host) + '</td><td>' + esc(c.product || '—') + '</td>' +
+      h += '<tr><td class="ip">' + esc(c.host) + '</td><td>' + esc(c.product || '—') +
+        (!c.result && c.onvif && (c.onvif.hardware || c.onvif.name)
+          ? ' <span class="src" title="Model from ONVIF discovery, which needs no credentials. The camera itself was not checked.">onvif</span>'
+          : '') + '</td>' +
         '<td>' + esc(c.firmware || '—') + '</td>' +
         '<td><span class="v ' + v[0] + '">' + esc(v[1]) + '</span></td><td>';
       if (f.length) {

@@ -10,7 +10,18 @@
 import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { hostsFor, ownNetwork, ScanProgress, ScannedCamera, scanSubnet, summarise, ENDPOINTS } from './scan';
+import {
+    hostsFor,
+    mergeOnvif,
+    ownNetwork,
+    ScanProgress,
+    ScannedCamera,
+    scanSubnet,
+    summarise,
+    ENDPOINTS,
+    DISCOVERY_PROBE,
+} from './scan';
+import { discover } from './onvif';
 import { licenceState, redactForTier } from './licence';
 
 const PORT = parseInt(process.env.HTTP_PORT ?? '32554', 10);
@@ -115,11 +126,20 @@ async function startScan() {
     // is the one the operator is looking at — leaving it out of its own report was
     // just wrong.
     const hosts = hostsFor(net.address, net.netmask);
-    progress = { done: 0, total: hosts.length, found: 0, running: true };
+    progress = { done: 0, total: hosts.length, found: 0, running: true, phase: 'discovering' };
 
-    results = await scanSubnet(hosts, s.credentials, s.targetOsMajor, s.concurrency, (p) => {
-        progress = p;
+    // Discovery first, and its result is used even if it is empty. It needs no
+    // credentials, so it is the only thing that can say anything at all about a
+    // camera whose password nobody has any more.
+    const onvif = await discover(net.address).catch(() => new Map());
+
+    progress = { ...progress, found: onvif.size, phase: 'scanning' };
+
+    const scanned = await scanSubnet(hosts, s.credentials, s.targetOsMajor, s.concurrency, (p) => {
+        progress = { ...p, phase: 'scanning' };
     });
+    results = mergeOnvif(scanned, onvif);
+    progress = { done: hosts.length, total: hosts.length, found: results.length, running: false, phase: 'done' };
     lastScan = new Date().toISOString();
     try {
         fs.mkdirSync(DATA, { recursive: true });
@@ -161,6 +181,9 @@ const server = http.createServer(async (req, res) => {
                 licensed: lic.valid,
                 licensedTo: lic.valid ? lic.subject : null,
                 endpoints: ENDPOINTS,
+                // Declared, not hidden: this is the one thing the app sends that
+                // is not an HTTP GET. "Read-only" has to cover all of it.
+                discoveryProbe: DISCOVERY_PROBE,
             });
         }
 
