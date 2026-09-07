@@ -28,3 +28,12 @@ node_modules/
 ._*
 .Spotlight-V100
 .Trashes
+
+# Signing keys. The private half must never be committed — losing control of it
+# means anyone can mint licences; losing the key itself means every existing
+# customer key stops verifying and the ACAP must be rebuilt. Keep it where you keep
+# passwords, not here. *.pub is safe and IS committed: it only verifies.
+*.pem
+*.key
+.preflight/
+signing*
