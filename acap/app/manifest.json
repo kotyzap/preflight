@@ -5,7 +5,7 @@
       "appName": "preflight",
       "friendlyName": "Preflight",
       "vendor": "kotyza@gmail.com",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "architecture": "aarch64",
       "runMode": "respawn",
       "vendorUrl": "https://preflight.4xs.dev"
@@ -15,52 +15,27 @@
       "reverseProxy": [
         {
           "apiPath": "status",
-          "target": "http://localhost:32554/status",
+          "target": "http://localhost:32554/",
           "access": "admin"
         },
         {
           "apiPath": "settings",
-          "target": "http://localhost:32554/settings",
+          "target": "http://localhost:32554/",
           "access": "admin"
         },
         {
           "apiPath": "scan",
-          "target": "http://localhost:32554/scan",
+          "target": "http://localhost:32554/",
           "access": "admin"
         },
         {
           "apiPath": "results",
-          "target": "http://localhost:32554/results",
+          "target": "http://localhost:32554/",
           "access": "admin"
         },
         {
           "apiPath": "report",
-          "target": "http://localhost:32554/report",
-          "access": "admin"
-        },
-        {
-          "apiPath": "status.cgi",
-          "target": "http://localhost:32554/status",
-          "access": "admin"
-        },
-        {
-          "apiPath": "settings.cgi",
-          "target": "http://localhost:32554/settings",
-          "access": "admin"
-        },
-        {
-          "apiPath": "scan.cgi",
-          "target": "http://localhost:32554/scan",
-          "access": "admin"
-        },
-        {
-          "apiPath": "results.cgi",
-          "target": "http://localhost:32554/results",
-          "access": "admin"
-        },
-        {
-          "apiPath": "report.cgi",
-          "target": "http://localhost:32554/report",
+          "target": "http://localhost:32554/",
           "access": "admin"
         }
       ]

@@ -105,13 +105,16 @@ async function startScan() {
 
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    // AXIS OS mounts each reverseProxy apiPath at /local/preflight/<apiPath>.
-    // The apiPaths are declared both bare ("status") and with a .cgi suffix, so
-    // strip the prefix and the suffix and route on the bare name either way.
-    const route = url.pathname
-        .replace(/^\/local\/preflight\//, '/')
-        .replace(/^\/+/, '/')
-        .replace(/\.cgi$/, '');
+    // Route on the LAST path segment, not on a stripped prefix.
+    //
+    // The camera's Apache appends the whole original request path to the proxy
+    // target, so what arrives here depends on the target's own path. A target of
+    // http://localhost:32554/status turned a request for /local/preflight/status
+    // into /status/local/preflight/status — which matched no prefix rule and got
+    // our own 404, indistinguishable from the camera never having routed it. The
+    // manifest now uses a bare origin, and this routes on the basename so the app
+    // is correct whichever shape arrives.
+    const route = '/' + (url.pathname.split('/').filter(Boolean).pop() ?? '').replace(/\.cgi$/, '');
     const s = readSettings();
     const lic = licenceState(s.licenceKey);
 
