@@ -1,12 +1,12 @@
 # Standalone ACAP build for AXIS OS 11/12 (Native SDK), bundling a Node.js app.
 # One architecture per build via --build-arg ARCH (aarch64 | armv7hf).
-#   docker build --build-arg ARCH=aarch64 --build-arg VERSION=12.6.0 -t preflight:arm64 .
+#   docker build --build-arg ARCH=aarch64 --build-arg VERSION=12.11.0 -t preflight:arm64 .
 #   docker cp $(docker create preflight:arm64):/opt/app/. ./build-arm64   # .eap lands here
 #
 # Replace "preflight" with your appName (also the launcher filename).
 
 ARG ARCH=aarch64
-ARG VERSION=12.6.0
+ARG VERSION=12.11.0
 ARG OS_VERSION=ubuntu24.04
 FROM --platform=linux/amd64 axisecp/acap-native-sdk:${VERSION}-${ARCH}-${OS_VERSION} AS builder
 

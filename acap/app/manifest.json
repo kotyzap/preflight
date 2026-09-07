@@ -1,12 +1,19 @@
 {
-  "schemaVersion": "1.7.4",
+  "schemaVersion": "2.2.0",
   "acapPackageConf": {
     "setup": {
       "appName": "preflight",
       "friendlyName": "Preflight",
       "vendor": "kotyza@gmail.com",
-      "version": "0.9.0",
+      "vendorId": "19f191bb41",
+      "version": "1.0.0",
       "architecture": "aarch64",
+      "compatibleOsVersions": [
+        {
+          "min": "11.0",
+          "max": "13"
+        }
+      ],
       "runMode": "respawn",
       "vendorUrl": "https://preflight.4xs.dev"
     },

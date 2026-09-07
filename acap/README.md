@@ -1,12 +1,16 @@
 # Preflight ACAP — subnet upgrade scanner
 
-**Status: built, signed keypair in place, installed on the bench Q1656 (OS 12.11).**
-Every `/local/preflight/*.cgi` request 404'd on that first package while the static
-settings page loaded and the app log showed the server listening on 32554 — so the
-proxy hop, not the app. The `reverseProxy` `apiPath`s are now declared bare
-(`status`, `settings`, …) with the `.cgi` spellings kept as aliases; Axis's own
-working example uses a dotless path, and AXIS OS's Apache already claims `*.cgi`.
-Awaiting the rebuild that confirms or refutes it.
+**Status: 1.0.0 built and A1/A4-clean. One step left: signing.**
+`Preflight_1_0_0_aarch64.eap` is built against ACAP Native SDK **12.11.0** with
+manifest **schema 2.2.0**, which is the first schema this SDK ships that accepts
+`vendorId` and `compatibleOsVersions`. So the package now declares `11.0`–`13`
+and no longer flags itself under its own rule A1 — verified by running the engine
+against the app list this package will produce, alongside an app declaring
+`11`–`12` to prove the rule still catches one.
+
+A4 is the remaining self-finding, and it is correct: the `.eap` is unsigned, and
+AXIS OS 13 refuses unsigned packages. Upload it to the ACAP signing portal and
+deploy what comes back.
 
 Install it on **one** camera; it scans the rest of that camera's /24 and reports
 which cameras survive an AXIS OS upgrade. Read-only against every camera it finds.
@@ -39,46 +43,49 @@ which cameras survive an AXIS OS upgrade. Read-only against every camera it find
 
 ## Open: how does this app declare A1 compatibility?
 
-Rule A1 — the rule this product exists to enforce — says AXIS OS 13 requires every
-ACAP to declare which OS majors it supports. **We cannot currently comply**, and
-that is a finding worth keeping.
+Rule A1 — the rule this product exists to enforce — says AXIS OS 13 requires
+every ACAP to declare which OS majors it supports. **Resolved in 1.0.0.**
 
-`compatibleOsVersions` in `acapPackageConf.setup` fails the build. The ACAP Native
-SDK 12.6.0 validates against manifest **schema 1.7.4**, whose `setup` object sets
-`additionalProperties: false` and permits only:
+The blocker was never the SDK's age but the schema version asked for. SDK 12.6.0
+ships schemas up to 1.8.0 only, and neither 1.7.4 nor 1.8.0 permits
+`compatibleOsVersions` or `vendorId` — both set `additionalProperties: false` on
+`setup`. Reading the schemas out of the image settled in one command what three
+passes at the documentation had not:
 
-    appId  appName  architecture  embeddedSdkVersion  friendlyName
-    runMode  runOptions  user  vendor  vendorUrl  version
+```sh
+docker run --rm --entrypoint sh axisecp/acap-native-sdk:<tag> -c \
+  'ls /opt/axis/acapsdk/axis-acap-manifest-tools/schema/schemas/'   # v1, or v1 and v2
+```
 
-No `compatibleOsVersions`, and no `vendorId` either — the signing guidance that
-suggested both was wrong for this SDK. Both are removed from the manifest so the
-package builds.
+- 12.6.0 → `v1` only (up to 1.8.0)
+- 12.9.0 → `v1` only
+- **12.11.0 → `v1` and `v2`**, including 2.2.0
 
-The field is real, and the answer is a newer `schemaVersion`, not a newer SDK.
-Axis's own current `reverse-proxy-using-fixed-port` example declares:
+2.2.0 requires `appName`, `architecture`, `compatibleOsVersions`, `runMode`,
+`vendor`, `vendorId`, `version`. `vendorId` must match `^[A-Fa-f0-9]{10}$`.
 
-    "schemaVersion": "2.2.0",
-    "vendor": "Axis Communications",
-    "vendorId": "1234567890",
-    "compatibleOsVersions": [{ "max": "13" }]
-
-— both fields 1.7.4 rejected, accepted under 2.2.0. So bumping `schemaVersion` to
-2.2.0 and adding `compatibleOsVersions` plus `vendorId` (`19f191bb41`) should make
-this package A1-compliant.
-
-Not done yet, deliberately: a schema bump changes what the *device* accepts at
-install time, and it is being held back so it does not confound the reverse-proxy
-fix above. Until then the scanner would flag itself, correctly, on an OS 13 camera.
+On the declared range: enforcement of `compatibleOsVersions` only begins at AXIS
+OS 12.10, so a `min` at or below that changes nothing on older cameras — it is
+documentation, and the armv7hf build targets ARTPEC-6/7 hardware running 11.x.
+Hence `11.0`. Only 12.11 is bench-verified; nothing below it has been on
+hardware, which is worth knowing before widening anything further. `max` is `13`
+because that is what rule A1 requires of everyone else.
 
 ## Not done
 
-- **A1 self-compliance.** See above — the `schemaVersion` 2.2.0 bump.
-- **Signing the .eap** through the Axis portal. The package is built but unsigned,
-  which means it cannot install on an OS 13 camera at all (rule A4, our own rule).
-- **Confirming the reverse-proxy fix** on hardware.
-- Note that the *first* installed package predates `licence-key.pub`, so it reports
-  `licence verification: DISABLED` and rejects every key. The current build ships
-  the public half; `npm run build` prints which of the two you got.
+- **Signing the .eap.** The one remaining step, and the one that cannot be
+  scripted: upload `Preflight_1_0_0_aarch64.eap` to the ACAP signing portal with
+  the My Axis account whose email is in `vendor`, and deploy the file it returns
+  rather than the Docker output. A vendor/email mismatch fails with ACAP000045
+  and needs a manifest fix and a rebuild — the manifest is baked in at build
+  time, so editing the built package does nothing.
+- **Advice text in the report.** The settings UI opens each camera with a
+  plain-language next action; the customer-facing report still shows findings
+  without it. That is backwards — the report is the paid deliverable. It belongs
+  in the shared engine so the CLI and the PDF get the same sentences.
+- **Scan-time estimate.** 4096 addresses at the default concurrency is roughly
+  half an hour on a subnet that drops rather than refuses. The progress bar shows
+  where it is but never says how long it will take.
 
 ## The free/paid line, and why
 

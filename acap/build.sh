@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")"
 
 IMAGE=preflight
-VERSION=12.6.0
+VERSION=12.11.0
 OS_VERSION=ubuntu24.04
 TARGET="${1:-both}"
 
