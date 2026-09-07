@@ -36,4 +36,9 @@ if [ ! -x "$NODE" ] && [ -f "$APP_DIR/bin/node-$A.gz" ]; then
     NODE="$RUNTIME_DIR/node-$A"
 fi
 
-exec "$NODE" "$APP_DIR/dist/bootstrap.js"
+# Bound the heap. A 250-camera scan holds under 4 MB of results, so 128 MB is
+# generous — the point is that a pathological network (a hostile host, a subnet
+# far larger than expected) makes this app die and respawn rather than putting
+# memory pressure on a camera that is also encoding video. runMode=respawn
+# brings it straight back.
+exec "$NODE" --max-old-space-size=128 "$APP_DIR/dist/bootstrap.js"

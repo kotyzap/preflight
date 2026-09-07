@@ -45,9 +45,13 @@ function request(
                 let body = '';
                 res.setEncoding('utf8');
                 res.on('data', (c) => {
-                    // A camera answering with a huge body is a camera we do not
-                    // want to buffer: nothing we read is larger than this.
-                    if (body.length < 512 * 1024) body += c;
+                    // Bounded so a misbehaving or hostile host cannot make the
+                    // scan allocate without limit. The largest real response
+                    // measured on hardware is list.cgi at 6 KB (13 applications
+                    // on a Q1656), so 256 KB is ~40x headroom, and at the
+                    // default concurrency of 12 the worst case transient is
+                    // 3 MB rather than 6 MB.
+                    if (body.length < 256 * 1024) body += c;
                 });
                 res.on('end', () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
             }

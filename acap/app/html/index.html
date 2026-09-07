@@ -138,7 +138,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.7.0">0.7.0</span>
+  <span class="ver" id="ver" data-page="0.8.0">0.8.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -260,8 +260,16 @@ same one every VMS on the network sends, which asks devices to state their model
     fetch(API + '/scan', { method: 'GET', credentials: 'same-origin' }).then(poll);
   };
 
+  // Poll /status, not /results.
+  //
+  // /results serialises every camera with every finding — measured at 343 KB for
+  // 100 cameras and 856 KB for 250. Polling that every 1.2 seconds meant the
+  // camera rebuilding and re-sending the entire growing result set about fifty
+  // times per scan, while its CPU is also encoding video. /status returns only
+  // the counters, so the cost of watching a scan no longer scales with the size
+  // of the network. The full set is fetched once, when it is finished.
   function poll() {
-    get('/results').then(function (d) {
+    get('/status').then(function (d) {
       var p = d.progress || {};
       $('prog').style.width = p.total ? Math.round((p.done / p.total) * 100) + '%' : '0';
       if (p.running) {
@@ -271,8 +279,8 @@ same one every VMS on the network sends, which asks devices to state their model
         return setTimeout(poll, 1200);
       }
       $('scan').disabled = false;
-      $('msg').textContent = d.at ? 'Last scan ' + new Date(d.at).toLocaleString() : '';
-      draw(d);
+      $('msg').textContent = d.lastScan ? 'Last scan ' + new Date(d.lastScan).toLocaleString() : '';
+      render();
     });
   }
 
@@ -421,6 +429,7 @@ same one every VMS on the network sends, which asks devices to state their model
 
   var COLS = 6;
   var TARGET = 13;
+  var CAMS = [];
 
   /**
    * The one sentence to read if you read nothing else.
@@ -465,6 +474,7 @@ same one every VMS on the network sends, which asks devices to state their model
       '<th>Address</th><th>Model</th><th>AXIS OS</th><th>Apps</th><th>Verdict</th><th></th>' +
       '</tr></thead><tbody>';
 
+    CAMS = cams;
     cams.forEach(function (c, i) {
       var v = c.result ? VERDICT[c.result.verdict] : ['v-none', c.note ? 'Not checked' : 'No data'];
       var f = (c.result && c.result.findings) || [];
@@ -482,7 +492,10 @@ same one every VMS on the network sends, which asks devices to state their model
         '<td><span class="v ' + v[0] + '">' + esc(v[1]) + '</span></td>' +
         '<td style="text-align:right"><button class="tog" type="button" data-row="' + i + '"' +
         ' aria-expanded="false"><span class="caret">\u25b8</span>' + esc(n) + '</button></td></tr>' +
-        '<tr class="exp" id="exp' + i + '" hidden><td colspan="' + COLS + '">' + panel(c) + '</td></tr>';
+        // The panel is built when it is first opened. Rendering all of them up
+        // front costs ~352 KB of HTML and 1200 hidden nodes at 100 cameras, and
+        // almost all of it is never looked at.
+        '<tr class="exp" id="exp' + i + '" hidden><td colspan="' + COLS + '"></td></tr>';
     });
     h += '</tbody></table>';
 
@@ -550,6 +563,8 @@ same one every VMS on the network sends, which asks devices to state their model
     if (!b) return;
     var row = $('exp' + b.dataset.row);
     if (!row) return;
+    var cell = row.firstChild;
+    if (!cell.innerHTML) cell.innerHTML = panel(CAMS[Number(b.dataset.row)]);
     row.hidden = !row.hidden;
     b.setAttribute('aria-expanded', String(!row.hidden));
   });
