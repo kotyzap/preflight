@@ -99,7 +99,7 @@ Carried in `rules.json` under `openQuestions` and rendered on the page.
 
 ## Next
 
-Step 1, the CLI, is done and lives in [axis-cli](https://github.com/pkotyza/axis-cli) as
+Step 1, the CLI, is done and lives in [axis-cli](https://github.com/kotyzap/axis-cli) as
 `axis preflight`. Step 2 is the ACAP in `acap/` — built and installed on the bench, currently
 debugging the reverse-proxy hop; see `acap/README.md`.
 
