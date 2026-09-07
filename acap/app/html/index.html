@@ -54,6 +54,9 @@ h1 span{color:var(--accent)}
 h2{font-size:15px;margin:26px 0 10px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:18px 20px;margin-bottom:14px}
 label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:9px 11px;font:13px var(--mono);resize:vertical}
+textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 input,select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
   border-radius:6px;padding:9px 11px;font:inherit}
 input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
@@ -138,7 +141,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.8.0">0.8.0</span>
+  <span class="ver" id="ver" data-page="0.9.0">0.9.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -153,6 +156,12 @@ before you start it. Read-only: it lists applications and reads settings, and wr
   none are reported as unverified, never as safe.</p>
   <div id="creds" style="margin-top:12px"></div>
   <button class="small" id="addcred" type="button">+ Add credentials</button>
+  <div style="margin-top:14px">
+    <label for="ranges">Other networks to scan</label>
+    <textarea id="ranges" rows="3" placeholder="10.0.6.0/24&#10;10.0.7.10-10.0.7.60"></textarea>
+    <p class="msg" id="scopehint" style="margin:5px 0 0">One per line. This camera's own /24 is always
+    scanned; anything else has to be listed here.</p>
+  </div>
   <div class="grid-3" style="margin-top:12px">
     <div><label for="target">Target AXIS OS</label>
       <select id="target"><option value="13">13</option><option value="12">12</option></select></div>
@@ -230,6 +239,7 @@ same one every VMS on the network sends, which asks devices to state their model
     $('target').value = String(TARGET);
     $('conc').value = s.concurrency || 12;
     $('key').value = s.licenceKey || '';
+    $('ranges').value = (s.extraRanges || []).join('\n');
   });
 
   $('save').onclick = function () {
@@ -239,6 +249,7 @@ same one every VMS on the network sends, which asks devices to state their model
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         credentials: readCreds(),
+        extraRanges: $('ranges').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
         targetOsMajor: Number($('target').value),
         concurrency: Number($('conc').value), licenceKey: $('key').value
       })
@@ -498,6 +509,18 @@ same one every VMS on the network sends, which asks devices to state their model
         '<tr class="exp" id="exp' + i + '" hidden><td colspan="' + COLS + '"></td></tr>';
     });
     h += '</tbody></table>';
+
+    // What was covered, stated where the results are read. "Nothing will roll
+    // back" means something different across one subnet than across four, and a
+    // camera on an unscanned network appears nowhere at all — not as a pass and
+    // not as a warning. That silence is the failure this line exists to prevent.
+    if (d.scopeLine) {
+      h += '<p class="note" style="margin-top:12px">' + esc(d.scopeLine) +
+        ' A camera on a network that was not scanned does not appear above at all.</p>';
+    }
+    (d.scope && d.scope.warnings || []).forEach(function (w) {
+      h += '<div class="kick unk" style="margin:10px 0 0"><p>' + esc(w) + '</p></div>';
+    });
 
     if (!d.licensed) {
       h += '<div class="locked"><strong>Free scan.</strong> You can see which cameras roll back and how many ' +

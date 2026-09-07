@@ -40,6 +40,9 @@ export type ReportInput = {
     /** Shown in the header when the integrator names the site. */
     fleetName?: string;
     sourceUrl: string;
+    /** Exactly which addresses were looked at. See below for why it is in here. */
+    scopeLine?: string;
+    scopeWarnings?: string[];
 };
 
 const esc = (s: unknown) =>
@@ -271,6 +274,8 @@ li.s-advisory .rid{color:var(--ok)}
 /* method + footer */
 .method{background:var(--panel);border-radius:5px;padding:14px 16px;margin:24px 0 0;
   font-size:9.5pt;break-inside:avoid}
+ul.scope-warn{margin:6px 0 0 18px;padding:0}
+ul.scope-warn li{margin:2px 0}
 .method h2{margin-top:0}
 .method p{margin:0 0 8px;max-width:78ch}
 .method p:last-child{margin:0}
@@ -344,6 +349,16 @@ ${cams.map((c) => cameraSection(c, input)).join('\n')}
   <p>Every camera was read over VAPIX using an account you supplied: the list of installed applications
   and a small set of configuration parameters. Nothing was written, no software was installed, and no
   data left your network.</p>
+${
+    input.scopeLine
+        ? `<p><strong>What was covered.</strong> ${esc(input.scopeLine)} A camera on a network that was not
+  scanned does not appear anywhere in this report — not as a pass and not as a warning. If your site has
+  cameras outside those ranges, this report does not describe them.</p>` +
+          (input.scopeWarnings?.length
+              ? `<ul class="scope-warn">${input.scopeWarnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`
+              : '')
+        : ''
+}
   <p><strong>“Cannot be determined” is not a pass.</strong> AXIS OS versions older than 12 do not publish
   the per-application compatibility and signature information two of these checks rely on. Those cameras
   are reported as unverified rather than as safe, because a false all-clear is worse than no report.</p>

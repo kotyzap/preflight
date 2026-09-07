@@ -11,7 +11,6 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-    hostsFor,
     mergeOnvif,
     ownNetwork,
     scanHost,
@@ -23,6 +22,7 @@ import {
     DISCOVERY_PROBE,
 } from './scan';
 import { discover } from './onvif';
+import { describePlan, planScan } from './ranges';
 import { licenceState, redactForTier } from './licence';
 
 const PORT = parseInt(process.env.HTTP_PORT ?? '32554', 10);
@@ -65,9 +65,11 @@ type Settings = {
     targetOsMajor: number;
     concurrency: number;
     licenceKey: string;
+    /** Ranges beyond this camera's own /24, as the operator typed them. */
+    extraRanges: string[];
 };
 
-const DEFAULTS: Settings = { credentials: [], targetOsMajor: 13, concurrency: 12, licenceKey: '' };
+const DEFAULTS: Settings = { credentials: [], targetOsMajor: 13, concurrency: 12, licenceKey: '', extraRanges: [] };
 
 function readSettings(): Settings {
     try {
@@ -76,9 +78,10 @@ function readSettings(): Settings {
         // Settings written by 0.1–0.3 held a single user/pass pair.
         if (!Array.isArray(raw.credentials) && raw.user) s.credentials = [{ user: raw.user, pass: raw.pass ?? '' }];
         s.credentials = (s.credentials ?? []).filter((c) => c && c.user);
+        s.extraRanges = Array.isArray(s.extraRanges) ? s.extraRanges.filter((r) => typeof r === 'string') : [];
         return s;
     } catch {
-        return { ...DEFAULTS, credentials: [] };
+        return { ...DEFAULTS, credentials: [], extraRanges: [] };
     }
 }
 
@@ -91,10 +94,21 @@ let progress: ScanProgress = { done: 0, total: 0, found: 0, running: false };
 let results: ScannedCamera[] = [];
 let lastScan: string | null = null;
 
+/**
+ * What the last scan actually covered.
+ *
+ * Kept beside the results and reported everywhere they are, because the scope of
+ * a scan is part of its meaning: "no cameras will roll back" is a different
+ * statement depending on whether one subnet was looked at or four.
+ */
+type Scope = { ranges: { label: string; addresses: number }[]; addresses: number; warnings: string[] };
+let scope: Scope = { ranges: [], addresses: 0, warnings: [] };
+
 try {
     const saved = JSON.parse(fs.readFileSync(RESULTS_FILE, 'utf8'));
     results = saved.cameras ?? [];
     lastScan = saved.at ?? null;
+    if (saved.scope) scope = saved.scope;
 } catch {
     /* first run */
 }
@@ -126,7 +140,13 @@ async function startScan() {
     // Including this camera. It is a camera on the network like any other, and it
     // is the one the operator is looking at — leaving it out of its own report was
     // just wrong.
-    const hosts = hostsFor(net.address, net.netmask);
+    const plan = planScan(net.address, net.netmask, s.extraRanges);
+    const hosts = plan.hosts;
+    scope = {
+        ranges: plan.ranges.map((r) => ({ label: r.label, addresses: r.hosts.length })),
+        addresses: hosts.length,
+        warnings: plan.warnings,
+    };
     progress = { done: 0, total: hosts.length, found: 0, running: true, phase: 'discovering' };
 
     // Discovery first, and its result is used even if it is empty. It needs no
@@ -144,7 +164,7 @@ async function startScan() {
     lastScan = new Date().toISOString();
     try {
         fs.mkdirSync(DATA, { recursive: true });
-        fs.writeFileSync(RESULTS_FILE, JSON.stringify({ at: lastScan, cameras: results }), { mode: 0o600 });
+        fs.writeFileSync(RESULTS_FILE, JSON.stringify({ at: lastScan, cameras: results, scope }), { mode: 0o600 });
     } catch {
         /* a full flash must not lose the in-memory result */
     }
@@ -185,6 +205,7 @@ const server = http.createServer(async (req, res) => {
                 // Declared, not hidden: this is the one thing the app sends that
                 // is not an HTTP GET. "Read-only" has to cover all of it.
                 discoveryProbe: DISCOVERY_PROBE,
+                scope,
             });
         }
 
@@ -209,6 +230,9 @@ const server = http.createServer(async (req, res) => {
                     targetOsMajor: Number(incoming.targetOsMajor ?? s.targetOsMajor) || 13,
                     concurrency: Math.min(32, Math.max(1, Number(incoming.concurrency ?? s.concurrency) || 12)),
                     licenceKey: String(incoming.licenceKey ?? s.licenceKey),
+                    extraRanges: Array.isArray(incoming.extraRanges)
+                        ? incoming.extraRanges.map((r: unknown) => String(r ?? '').trim()).filter(Boolean).slice(0, 16)
+                        : s.extraRanges,
                 };
                 writeSettings(next);
                 return json(res, 200, { ok: true });
@@ -219,6 +243,7 @@ const server = http.createServer(async (req, res) => {
                 targetOsMajor: s.targetOsMajor,
                 concurrency: s.concurrency,
                 licenceKey: s.licenceKey,
+                extraRanges: s.extraRanges,
             });
         }
 
@@ -263,7 +288,7 @@ const server = http.createServer(async (req, res) => {
                 writeSettings({ ...s, credentials: [...s.credentials, creds].slice(0, 12) });
             }
             try {
-                fs.writeFileSync(RESULTS_FILE, JSON.stringify({ at: lastScan, cameras: results }), { mode: 0o600 });
+                fs.writeFileSync(RESULTS_FILE, JSON.stringify({ at: lastScan, cameras: results, scope }), { mode: 0o600 });
             } catch {
                 /* the in-memory result is what the page reads next */
             }
@@ -277,6 +302,8 @@ const server = http.createServer(async (req, res) => {
             return json(res, 200, {
                 at: lastScan,
                 progress,
+                scope,
+                scopeLine: describePlan(scope),
                 summary: summarise(results),
                 licensed: lic.valid,
                 cameras: redactForTier(results, lic.valid),
@@ -303,6 +330,8 @@ const server = http.createServer(async (req, res) => {
                 })),
                 targetOsMajor: s.targetOsMajor,
                 rulesetVersion: require('./rules.json').rulesetVersion,
+                scopeLine: describePlan(scope),
+                scopeWarnings: scope.warnings,
                 generated: new Date(),
                 sourceUrl: 'https://preflight.4xs.dev',
             });
