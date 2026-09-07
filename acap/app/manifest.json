@@ -5,7 +5,7 @@
       "appName": "preflight",
       "friendlyName": "Preflight",
       "vendor": "kotyza@gmail.com",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "architecture": "aarch64",
       "runMode": "respawn",
       "vendorUrl": "https://preflight.4xs.dev"
@@ -35,6 +35,11 @@
         },
         {
           "apiPath": "report",
+          "target": "http://localhost:32554/",
+          "access": "admin"
+        },
+        {
+          "apiPath": "recheck",
           "target": "http://localhost:32554/",
           "access": "admin"
         }

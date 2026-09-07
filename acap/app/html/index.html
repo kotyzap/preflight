@@ -79,11 +79,33 @@ td.ip{font-family:var(--mono)}
 .v{display:inline-block;font:600 11px var(--mono);padding:3px 7px;border-radius:4px;white-space:nowrap}
 .v-bad{background:var(--a-bg);color:var(--a)} .v-unk{background:var(--b-bg);color:var(--b)}
 .v-ok{background:var(--ok-bg);color:var(--ok)} .v-none{background:var(--code);color:var(--muted)}
-details{margin-top:6px}
-summary{cursor:pointer;font-size:12px;color:var(--muted)}
-.finding{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+/* The collapsed row stays a table row; the expansion is its own full-width row.
+   Findings used to render inside the last cell, which squeezed 15 of them into a
+   column the width of the word "Detail". */
+button.tog{background:none;border:1px solid var(--line);color:var(--muted);border-radius:5px;
+  padding:4px 9px;font:12px inherit;cursor:pointer;white-space:nowrap}
+button.tog:hover{color:var(--accent);border-color:var(--accent)}
+button.tog .caret{display:inline-block;transition:transform .15s;margin-right:5px}
+button.tog[aria-expanded="true"] .caret{transform:rotate(90deg)}
+tr.exp>td{padding:0 0 14px;border-bottom:1px solid var(--line)}
+.panel{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);
+  margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.meta b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:12px}
+/* Findings grouped by application, filling whatever width there is. */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px;align-items:start}
+.fgroup{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:11px 13px}
+.fgroup h4{margin:0 0 7px;font-size:13px;display:flex;gap:7px;align-items:baseline;flex-wrap:wrap}
+.fgroup h4 em{font:11px var(--mono);color:var(--muted);font-style:normal}
+/* Inline re-check for a camera whose credentials were refused — the one failure
+   the operator can actually fix, fixed where they are reading about it. */
+.fix{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;max-width:620px}
+.fix .wide{grid-column:1/-1;margin:0;font-size:12.5px}
+.fix label{margin-bottom:4px}
+.finding{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line);line-height:1.5}
 .finding:last-child{border-bottom:0}
-.rid{font:600 11px var(--mono);color:var(--a);margin-right:6px}
+.rid{font:600 11px var(--mono);margin-right:6px;color:var(--a)}
+.rid.s-advisory{color:var(--b)} .rid.s-unknown{color:var(--c)}
 .locked{background:var(--b-bg);border-radius:7px;padding:14px 16px;margin-top:14px;font-size:13.5px}
 .note{font-size:12.5px;color:var(--muted);margin-top:10px}
 .src{font:600 9.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
@@ -103,7 +125,7 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
   <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
        A literal rather than a fetch, because the whole point is to be readable when
        the CGIs are dead — a stale page is exactly what you need to see then. -->
-  <span class="ver" id="ver" data-page="0.5.0">0.5.0</span>
+  <span class="ver" id="ver" data-page="0.6.0">0.6.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -249,12 +271,80 @@ same one every VMS on the network sends, which asks devices to state their model
     'will-upgrade': ['v-ok', 'Will upgrade']
   };
 
+  var SEV = { blocking: 's-blocking', advisory: 's-advisory', unknown: 's-unknown' };
+
+  function metaStrip(c) {
+    var bits = [];
+    if (c.product) bits.push('Model <b>' + esc(c.product) + '</b>');
+    if (c.firmware) bits.push('AXIS OS <b>' + esc(c.firmware) + '</b>');
+    if (c.architecture) bits.push('Architecture <b>' + esc(c.architecture) + '</b>');
+    if (c.serial) bits.push('Serial <b>' + esc(c.serial) + '</b>');
+    if (c.result && c.result.appCount != null) bits.push('Applications <b>' + c.result.appCount + '</b>');
+    if (c.onvif && (c.onvif.hardware || c.onvif.name)) {
+      bits.push('ONVIF <b>' + esc(c.onvif.name || c.onvif.hardware) + '</b>');
+    }
+    return bits.length ? '<p class="meta">' + bits.join('') + '</p>' : '';
+  }
+
+  // Group by application. Six applications each tripping A1 and A4 is six things
+  // to fix, not twelve problems, and a flat list of fifteen findings reads as a
+  // catastrophe rather than a work list.
+  function findingGroups(f) {
+    var byApp = {}, order = [], wide = [];
+    f.forEach(function (x) {
+      if (!x.application) return wide.push(x);
+      if (!byApp[x.application]) { byApp[x.application] = []; order.push(x.application); }
+      byApp[x.application].push(x);
+    });
+    var groups = order.map(function (a) { return { title: a, findings: byApp[a] }; });
+    if (wide.length) groups.push({ title: 'This camera', wide: true, findings: wide });
+    return groups;
+  }
+
+  function panel(c) {
+    var f = (c.result && c.result.findings) || [];
+    var h = '<div class="panel">' + metaStrip(c);
+    if (c.note) h += '<p class="msg" style="margin:0 0 12px">' + esc(c.note) + '</p>';
+    // No result means it was never checked. Offer the credentials form here
+    // rather than sending the operator back to the settings panel to add a set,
+    // save, and re-sweep 254 addresses to test one guess.
+    if (!c.result) {
+      h += '<div class="fix">' +
+        '<p class="wide msg" style="margin:0 0 2px">Try credentials for this camera. Checked against ' +
+        esc(c.host) + ' only, and nothing is written to it.</p>' +
+        '<div><label>Username</label><input class="fu" autocomplete="off"></div>' +
+        '<div><label>Password</label><input class="fp" type="password" autocomplete="new-password"></div>' +
+        '<button class="tog fgo" type="button" data-host="' + esc(c.host) + '">Check</button>' +
+        '<label class="wide" style="text-transform:none;letter-spacing:0;color:var(--muted);font-size:12.5px">' +
+        '<input class="fr" type="checkbox" style="width:auto;margin-right:6px" checked>' +
+        'Remember these for the next scan</label>' +
+        '<p class="wide msg fmsg" style="margin:0"></p>' +
+        '</div>';
+      return h + '</div>';
+    }
+    if (!f.length) {
+      h += '<p class="msg" style="margin:0">Nothing found against the current ruleset.</p>';
+      return h + '</div>';
+    }
+    h += '<div class="fgrid">';
+    findingGroups(f).forEach(function (g) {
+      h += '<div class="fgroup"><h4>' + esc(g.title) +
+        '<em>' + g.findings.length + (g.wide ? ' camera-wide' : '') + '</em></h4>';
+      g.findings.forEach(function (x) {
+        h += '<div class="finding"><span class="rid ' + (SEV[x.severity] || '') + '">' +
+          esc(x.rule) + '</span>' + esc(x.message) + '</div>';
+      });
+      h += '</div>';
+    });
+    return h + '</div></div>';
+  }
+
+  var COLS = 6;
+
   function draw(d) {
     var cams = d.cameras || [];
-    if (!cams.length) {
-      $('out').innerHTML = '<div class="card"><p class="msg">No results yet. Enter credentials and run a scan.</p></div>';
-      return;
-    }
+    if (!cams.length) { $('out').innerHTML = ''; return; }
+
     var s = d.summary || {};
     var h = '<div class="tiles">' +
       '<div class="tile bad"><b>' + (s.rollback || 0) + '</b><span>will roll back</span></div>' +
@@ -262,26 +352,27 @@ same one every VMS on the network sends, which asks devices to state their model
       '<div class="tile ok"><b>' + (s.clean || 0) + '</b><span>will upgrade</span></div>' +
       '<div class="tile"><b>' + (s.cameras || 0) + '</b><span>cameras found</span></div>' +
       '</div><div class="card"><table><thead><tr>' +
-      '<th>Address</th><th>Model</th><th>AXIS OS</th><th>Verdict</th><th>Detail</th>' +
+      '<th>Address</th><th>Model</th><th>AXIS OS</th><th>Apps</th><th>Verdict</th><th></th>' +
       '</tr></thead><tbody>';
 
-    cams.forEach(function (c) {
+    cams.forEach(function (c, i) {
       var v = c.result ? VERDICT[c.result.verdict] : ['v-none', c.note ? 'Not checked' : 'No data'];
       var f = (c.result && c.result.findings) || [];
+      var apps = c.result && c.result.appCount != null ? String(c.result.appCount) : '—';
+      // Label the toggle by what is behind it: a work list, an action, or nothing.
+      var n = f.length ? f.length + ' finding' + (f.length === 1 ? '' : 's')
+        : !c.result ? 'Try credentials' : 'Details';
+
       h += '<tr><td class="ip">' + esc(c.host) + '</td><td>' + esc(c.product || '—') +
         (!c.result && c.onvif && (c.onvif.hardware || c.onvif.name)
           ? ' <span class="src" title="Model from ONVIF discovery, which needs no credentials. The camera itself was not checked.">onvif</span>'
           : '') + '</td>' +
         '<td>' + esc(c.firmware || '—') + '</td>' +
-        '<td><span class="v ' + v[0] + '">' + esc(v[1]) + '</span></td><td>';
-      if (f.length) {
-        h += '<details><summary>' + f.length + ' finding' + (f.length === 1 ? '' : 's') + '</summary>';
-        f.forEach(function (x) {
-          h += '<div class="finding"><span class="rid">' + esc(x.rule) + '</span>' + esc(x.message) + '</div>';
-        });
-        h += '</details>';
-      } else if (c.note) { h += '<span class="msg">' + esc(c.note) + '</span>'; }
-      h += '</td></tr>';
+        '<td>' + apps + '</td>' +
+        '<td><span class="v ' + v[0] + '">' + esc(v[1]) + '</span></td>' +
+        '<td style="text-align:right"><button class="tog" type="button" data-row="' + i + '"' +
+        ' aria-expanded="false"><span class="caret">\u25b8</span>' + esc(n) + '</button></td></tr>' +
+        '<tr class="exp" id="exp' + i + '" hidden><td colspan="' + COLS + '">' + panel(c) + '</td></tr>';
     });
     h += '</tbody></table>';
 
@@ -297,6 +388,52 @@ same one every VMS on the network sends, which asks devices to state their model
     }
     h += '</div>';
     $('out').innerHTML = h;
+
+    // One delegated handler rather than an inline onclick per row: the markup is
+    // built as a string, and inline handlers in a string are how escaping bugs
+    // become script injection.
+    $('out').addEventListener('click', function (ev) {
+      var t = ev.target.closest ? ev.target : null;
+      if (!t) return;
+
+      var go = t.closest('button.fgo');
+      if (go) return recheck(go);
+
+      var b = t.closest('button.tog');
+      if (!b) return;
+      var row = $('exp' + b.dataset.row);
+      if (!row) return;
+      row.hidden = !row.hidden;
+      b.setAttribute('aria-expanded', String(!row.hidden));
+    });
+  }
+
+  function recheck(btn) {
+    var box = btn.closest('.fix');
+    var msg = box.querySelector('.fmsg');
+    var user = box.querySelector('.fu').value.trim();
+    if (!user) { msg.textContent = 'A username is needed.'; return; }
+
+    btn.disabled = true;
+    msg.textContent = 'Checking ' + btn.dataset.host + '…';
+    fetch(API + '/recheck', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host: btn.dataset.host, user: user,
+        pass: box.querySelector('.fp').value,
+        remember: box.querySelector('.fr').checked
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      btn.disabled = false;
+      // A success redraws the whole table, because one camera's verdict changes
+      // the fleet totals above it.
+      if (d.ok) { render(); return; }
+      msg.textContent = d.error || d.reason || 'Those credentials were refused.';
+    }).catch(function () {
+      btn.disabled = false;
+      msg.textContent = 'The request failed. Is the application still running?';
+    });
   }
 
   get('/status').then(function (st) {

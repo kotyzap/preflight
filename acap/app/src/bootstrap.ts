@@ -14,6 +14,7 @@ import {
     hostsFor,
     mergeOnvif,
     ownNetwork,
+    scanHost,
     ScanProgress,
     ScannedCamera,
     scanSubnet,
@@ -224,6 +225,52 @@ const server = http.createServer(async (req, res) => {
         if (route === '/scan') {
             void startScan();
             return json(res, 202, { started: true, progress });
+        }
+
+        /**
+         * Re-check one camera with credentials typed for it.
+         *
+         * A "credentials refused" row is the one failure the operator can
+         * actually fix, and making them go back to the settings panel, add a
+         * set, save, and re-sweep 254 addresses to test one guess is a poor
+         * trade. This checks that camera and nothing else.
+         *
+         * The host must already be in the results. Otherwise this endpoint is a
+         * general-purpose credential prober pointed at any address on the
+         * network, which is exactly the reading of this application that its
+         * read-only, published-endpoints design exists to refuse.
+         */
+        if (route === '/recheck') {
+            if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
+            const body = JSON.parse((await readBody(req)) || '{}');
+            const host = String(body.host ?? '');
+            const idx = results.findIndex((c) => c.host === host);
+            if (idx === -1) return json(res, 400, { error: 'That address is not in the current scan.' });
+
+            const user = String(body.user ?? '').trim();
+            if (!user) return json(res, 400, { error: 'A username is needed.' });
+            const creds = { user, pass: String(body.pass ?? '') };
+
+            const found = await scanHost(host, [creds], s.targetOsMajor).catch(() => null);
+            if (!found) {
+                return json(res, 200, { ok: false, reason: 'It stopped answering. Try again.' });
+            }
+            // Discovery told us the model without credentials; a failed re-check
+            // must not throw that away.
+            results[idx] = { ...found, onvif: results[idx].onvif ?? null, product: found.product ?? results[idx].product };
+
+            if (body.remember && !s.credentials.some((c) => c.user === creds.user && c.pass === creds.pass)) {
+                writeSettings({ ...s, credentials: [...s.credentials, creds].slice(0, 12) });
+            }
+            try {
+                fs.writeFileSync(RESULTS_FILE, JSON.stringify({ at: lastScan, cameras: results }), { mode: 0o600 });
+            } catch {
+                /* the in-memory result is what the page reads next */
+            }
+            return json(res, 200, {
+                ok: Boolean(results[idx].result),
+                reason: results[idx].result ? null : results[idx].note,
+            });
         }
 
         if (route === '/results') {

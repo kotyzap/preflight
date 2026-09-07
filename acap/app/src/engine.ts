@@ -83,6 +83,8 @@ export type PreflightResult = {
     /** Counts by severity, for the fleet table. */
     blocking: number;
     unknown: number;
+    /** Installed applications, or null when the list could not be read. */
+    appCount: number | null;
 };
 
 /**
@@ -446,7 +448,7 @@ export function evaluate(input: PreflightInput): PreflightResult {
     else if (degraded > 0) verdict = 'will-lose-function';
     else verdict = 'will-upgrade';
 
-    return { verdict, findings, blocking, unknown };
+    return { verdict, findings, blocking, unknown, appCount: input.apps ? input.apps.length : null };
 }
 
 export const VERDICT_LABEL: Record<Verdict, string> = {

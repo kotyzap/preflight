@@ -149,7 +149,7 @@ export function parseApplications(xml: string) {
     return apps;
 }
 
-async function scanHost(
+export async function scanHost(
     host: string,
     credentials: Credentials[],
     targetOsMajor: number
