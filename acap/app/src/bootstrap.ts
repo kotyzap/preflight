@@ -114,7 +114,11 @@ const server = http.createServer(async (req, res) => {
     // our own 404, indistinguishable from the camera never having routed it. The
     // manifest now uses a bare origin, and this routes on the basename so the app
     // is correct whichever shape arrives.
-    const route = '/' + (url.pathname.split('/').filter(Boolean).pop() ?? '').replace(/\.cgi$/, '');
+    // A trailing slash means the directory itself, not the segment before it:
+    // /local/preflight/ must serve the page, not look for an endpoint "preflight".
+    const route = url.pathname.endsWith('/')
+        ? '/'
+        : '/' + (url.pathname.split('/').filter(Boolean).pop() ?? '').replace(/\.cgi$/, '');
     const s = readSettings();
     const lic = licenceState(s.licenceKey);
 
