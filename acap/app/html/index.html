@@ -23,7 +23,10 @@ body{margin:0;background:var(--bg);color:var(--ink);
 header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
 h1{font-size:19px;margin:0;letter-spacing:-.01em}
 h1 span{color:var(--accent)}
-#theme{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);
+.ver{margin-left:auto;font:11px/1 var(--mono);color:var(--muted);border:1px solid var(--line);
+  border-radius:99px;padding:4px 8px;letter-spacing:.02em}
+.ver.stale{color:#fff;background:var(--a);border-color:var(--a)}
+#theme{margin-left:0;background:none;border:1px solid var(--line);color:var(--muted);
   border-radius:6px;width:32px;height:32px;cursor:pointer}
 .lede{color:var(--muted);margin:0 0 22px;max-width:72ch}
 h2{font-size:15px;margin:26px 0 10px}
@@ -72,6 +75,10 @@ code{background:var(--code);padding:.1em .35em;border-radius:3px;font:.9em var(-
 
 <header>
   <h1>Pre<span>flight</span></h1>
+  <!-- Kept in step with package.json by `npm run build`, which fails on a mismatch.
+       A literal rather than a fetch, because the whole point is to be readable when
+       the CGIs are dead — a stale page is exactly what you need to see then. -->
+  <span class="ver" id="ver" data-page="0.2.0">0.2.0</span>
   <button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
 </header>
 <p class="lede">Scans this camera's network and tells you which cameras survive an AXIS OS upgrade —
@@ -225,6 +232,18 @@ shown by <code>status</code> — all GET, all read-only.</p>
   }
 
   get('/status').then(function (st) {
+    // The page is served statically out of the package, the version below comes from
+    // the running process. They disagree when an install did not actually replace the
+    // old package — which looks identical to a broken app until you check.
+    var page = $('ver').dataset.page;
+    if (st.version && st.version !== page) {
+      $('ver').classList.add('stale');
+      $('ver').textContent = page + ' page / ' + st.version + ' running';
+      $('ver').title = 'The settings page and the running application come from different '
+        + 'package versions. Reinstall — the upload probably did not replace the old one.';
+    } else if (st.version) {
+      $('ver').title = 'Preflight ' + st.version;
+    }
     if (st.progress && st.progress.running) { $('scan').disabled = true; poll(); } else { render(); }
   });
 })();

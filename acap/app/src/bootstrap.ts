@@ -19,6 +19,15 @@ const SETTINGS_FILE = path.join(DATA, 'settings.json');
 const RESULTS_FILE = path.join(DATA, 'results.json');
 const HTML_DIR = path.join(__dirname, '..', 'html');
 
+/** The running package's version. Read, not compiled in, so it cannot drift. */
+const VERSION: string = (() => {
+    try {
+        return require(path.join(__dirname, '..', 'package.json')).version ?? 'unknown';
+    } catch {
+        return 'unknown';
+    }
+})();
+
 type Settings = {
     user: string;
     pass: string;
@@ -111,6 +120,8 @@ const server = http.createServer(async (req, res) => {
             const net = ownNetwork();
             return json(res, 200, {
                 app: 'preflight',
+                // From the package that is actually running, not the page's literal.
+                version: VERSION,
                 network: net,
                 progress,
                 lastScan,
