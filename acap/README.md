@@ -1,6 +1,12 @@
 # Preflight ACAP — subnet upgrade scanner
 
-**Status: complete except licence signing. Not yet built or installed on hardware.**
+**Status: built, signed keypair in place, installed on the bench Q1656 (OS 12.11).**
+Every `/local/preflight/*.cgi` request 404'd on that first package while the static
+settings page loaded and the app log showed the server listening on 32554 — so the
+proxy hop, not the app. The `reverseProxy` `apiPath`s are now declared bare
+(`status`, `settings`, …) with the `.cgi` spellings kept as aliases; Axis's own
+working example uses a dotless path, and AXIS OS's Apache already claims `*.cgi`.
+Awaiting the rebuild that confirms or refutes it.
 
 Install it on **one** camera; it scans the rest of that camera's /24 and reports
 which cameras survive an AXIS OS upgrade. Read-only against every camera it finds.
@@ -48,30 +54,31 @@ No `compatibleOsVersions`, and no `vendorId` either — the signing guidance tha
 suggested both was wrong for this SDK. Both are removed from the manifest so the
 package builds.
 
-The field is real, though: the bench Q1656 reports `<CompatibleOsVersions>` for
-camoverlay (11–13) and AXIS Image Health Analytics (12.11–13). So a newer SDK, or a
-newer `schemaVersion`, supports it. Three attempts at the Axis manifest-schema
-reference did not confirm which — don't guess, check the schemas shipped inside a
-newer SDK image:
+The field is real, and the answer is a newer `schemaVersion`, not a newer SDK.
+Axis's own current `reverse-proxy-using-fixed-port` example declares:
 
-```sh
-docker run --rm axisecp/acap-native-sdk:12.11.0-aarch64-ubuntu24.04 \
-  ls /opt/axis/acapsdk/sysroots/x86_64-pokysdk-linux/usr/lib/python3*/dist-packages/*manifest*/ 2>/dev/null
-# or find the bundled schema json and grep it
-```
+    "schemaVersion": "2.2.0",
+    "vendor": "Axis Communications",
+    "vendorId": "1234567890",
+    "compatibleOsVersions": [{ "max": "13" }]
 
-Until then this package is not A1-compliant, which is worth saying out loud: the
-scanner would flag itself, correctly, on an OS 13 camera.
+— both fields 1.7.4 rejected, accepted under 2.2.0. So bumping `schemaVersion` to
+2.2.0 and adding `compatibleOsVersions` plus `vendorId` (`19f191bb41`) should make
+this package A1-compliant.
+
+Not done yet, deliberately: a schema bump changes what the *device* accepts at
+install time, and it is being held back so it does not confound the reverse-proxy
+fix above. Until then the scanner would flag itself, correctly, on an OS 13 camera.
 
 ## Not done
 
-- **Licence signing.** `LICENCE_PUBLIC_KEY` in `licence.ts` is empty, so
-  `verifyKey()` currently rejects every key. It fails *closed* on purpose — a build
-  that could not verify would otherwise hand the paid tier to everyone. Generate a
-  keypair, embed the public half, and write the key-issuing side.
-- **Never built.** `./build.sh arm64` has not been run; Docker was not available in
-  this session. Expect the usual first-build friction from the gotchas list.
-- **Never installed on a camera.** Nothing here has met hardware.
+- **A1 self-compliance.** See above — the `schemaVersion` 2.2.0 bump.
+- **Signing the .eap** through the Axis portal. The package is built but unsigned,
+  which means it cannot install on an OS 13 camera at all (rule A4, our own rule).
+- **Confirming the reverse-proxy fix** on hardware.
+- Note that the *first* installed package predates `licence-key.pub`, so it reports
+  `licence verification: DISABLED` and rejects every key. The current build ships
+  the public half; `npm run build` prints which of the two you got.
 
 ## The free/paid line, and why
 

@@ -90,15 +90,27 @@ detector removal, AXIS Removed Object Detection, Media Clip / Audio Mixer change
 
 Carried in `rules.json` under `openQuestions` and rendered on the page.
 
-1. **Q1** — can the probe read an installed ACAP's manifest over read-only VAPIX without pulling the
-   `.eap`? Blocks A1, A3, A8. Decides whether v1 is a weekend or a month.
+1. ~~**Q1** — can the probe read an installed ACAP's manifest over read-only VAPIX?~~ **Answered: no**
+   — and it stopped mattering. `applications/list.cgi` already returns `CompatibleOsVersions`,
+   `SignatureStatus` and `<Resources>`, which is everything A1, A4 and A8 need.
 2. **Q2** — is `.eap` binary inspection in scope for v1? Blocks every `eap-binary` detection.
-3. **Q3** — does C2 hold?
+3. ~~**Q3** — does C2 hold?~~ **Answered: yes.** Both bench cameras refused digest and accepted
+   basic-over-HTTPS, under `AuthenticationPolicy` `recommended` and `basic` alike.
 
 ## Next
 
-Step 1 is the CLI: A1–A5 only, read-only VAPIX, JSON and HTML output. It does not start until Q1 is
-answered on a bench camera.
+Step 1, the CLI, is done and lives in [axis-cli](https://github.com/pkotyza/axis-cli) as
+`axis preflight`. Step 2 is the ACAP in `acap/` — built and installed on the bench, currently
+debugging the reverse-proxy hop; see `acap/README.md`.
+
+## Licence
+
+[PolyForm Noncommercial 1.0.0](LICENSE). Read it, run it, change it, share it — for any
+noncommercial purpose. Selling it, or building it into something you charge for, needs a separate
+licence: ask at <https://preflight.4xs.dev>.
+
+The ruleset itself (`rules.json`) cites public Axis documentation throughout and is meant to be
+checked, argued with, and corrected. Issues and pull requests on the rules are the point.
 
 ---
 
