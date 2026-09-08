@@ -15,6 +15,41 @@ deploy what comes back.
 Install it on **one** camera; it scans the rest of that camera's /24 and reports
 which cameras survive an AXIS OS upgrade. Read-only against every camera it finds.
 
+## Which package
+
+| package | download | internal flash | SD card |
+|---|---|---|---|
+| `Preflight_<v>_aarch64.eap` | 29.7 MB | **79.1 MB** | — |
+| `Preflight_<v>_aarch64_smallflash.eap` | 29.4 MB | **29.8 MB** | 78.9 MB |
+| `Preflight_<v>_armv7hf.eap` | 26.6 MB | 70.8 MB | — |
+
+`aarch64` covers ARTPEC-8, ARTPEC-9 **and Ambarella CV25** — Axis's own chip table
+lists all three as aarch64, so CV25 needs no separate architecture. What CV25
+models often do need is the small-flash package, because the standard one wants
+79 MB of internal flash for the bundled Node runtime.
+
+**The small-flash package requires an SD card.** It ships the runtime gzipped and
+expands it to `/var/spool/storage/SD_DISK` on first start (a few seconds, once).
+Without a writable SD card it refuses to start and says so, rather than expanding
+onto internal flash — which would leave the camera holding both the 30 MB package
+and the 79 MB expansion, worse than the standard build. A camera with no SD card
+should install the standard package.
+
+Note the download is the same size either way: a `.eap` is a tar.gz, and a tar.gz
+cannot usefully compress an already-gzipped file. The saving is entirely in what
+stays on the camera.
+
+```sh
+sh build.sh arm64    # ARTPEC-8/9, CV25 — standard
+sh build.sh sd       # same architecture, small internal flash
+sh build.sh armhf    # ARTPEC-7 / i.MX6SX
+sh build.sh all
+```
+
+Both aarch64 variants carry the same `appName` and version, so installing one
+replaces the other, and `build.sh` renames the small one — otherwise acap-build
+gives them identical filenames and the second build silently overwrites the first.
+
 ## Done
 
 - `Dockerfile`, `build.sh` — ACAP Native SDK build via Docker, aarch64 for v1.

@@ -1,6 +1,6 @@
 {
   "name": "preflight-acap",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scans an Axis camera subnet and reports which cameras survive an AXIS OS upgrade",
   "main": "dist/bootstrap.js",
   "private": true,

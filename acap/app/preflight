@@ -16,12 +16,12 @@ PERSISTENT_DATA_PATH="${PERSISTENT_DATA_PATH:-$APP_DIR/localdata/}"
 export PERSISTENT_DATA_PATH
 mkdir -p "$PERSISTENT_DATA_PATH"
 
-# Runtime dir for any decompressed binaries: prefer SD card, else internal.
+# Runtime dir for any decompressed binaries: the SD card if there is one.
 SD_DISK=/var/spool/storage/SD_DISK
 if [ -d "$SD_DISK" ] && touch "$SD_DISK/.wtest" 2>/dev/null; then
-    rm -f "$SD_DISK/.wtest"; RUNTIME_DIR="$SD_DISK/preflight_runtime"
+    rm -f "$SD_DISK/.wtest"; RUNTIME_DIR="$SD_DISK/preflight_runtime"; RUNTIME_ON_SD=1
 else
-    RUNTIME_DIR="$APP_DIR/localdata/runtime"
+    RUNTIME_DIR="$APP_DIR/localdata/runtime"; RUNTIME_ON_SD=0
 fi
 mkdir -p "$RUNTIME_DIR"
 
@@ -32,8 +32,38 @@ esac
 
 NODE="$APP_DIR/bin/node-$A"
 if [ ! -x "$NODE" ] && [ -f "$APP_DIR/bin/node-$A.gz" ]; then
-    [ -x "$RUNTIME_DIR/node-$A" ] || { gunzip -c "$APP_DIR/bin/node-$A.gz" > "$RUNTIME_DIR/node-$A" && chmod 0755 "$RUNTIME_DIR/node-$A"; }
+    # Small-flash package: the runtime ships compressed (30 MB instead of 79 MB)
+    # and is expanded once, outside the app directory.
+    #
+    # It is expanded to the SD card or not at all. Falling back to internal flash
+    # here would defeat the entire point of this build: the camera would end up
+    # holding the 30 MB package AND the 79 MB expansion, which is worse than the
+    # standard package. A camera with no SD card should install the standard
+    # build, and saying so plainly beats filling its flash and failing later.
+    if [ "$RUNTIME_ON_SD" != "1" ]; then
+        echo "preflight: this is the small-flash build and it needs an SD card." >&2
+        echo "preflight: no writable storage at $SD_DISK — install the standard" >&2
+        echo "preflight: package instead, or insert and mount an SD card." >&2
+        exit 1
+    fi
+    if [ ! -x "$RUNTIME_DIR/node-$A" ]; then
+        echo "preflight: expanding the Node runtime to $RUNTIME_DIR (first start only)"
+        # Expand to a temporary name and move it into place, so an interrupted
+        # first start cannot leave a half-written binary that looks complete.
+        if ! gunzip -c "$APP_DIR/bin/node-$A.gz" > "$RUNTIME_DIR/node-$A.part"; then
+            echo "preflight: could not expand the runtime — is the SD card full?" >&2
+            rm -f "$RUNTIME_DIR/node-$A.part"
+            exit 1
+        fi
+        chmod 0755 "$RUNTIME_DIR/node-$A.part"
+        mv -f "$RUNTIME_DIR/node-$A.part" "$RUNTIME_DIR/node-$A"
+    fi
     NODE="$RUNTIME_DIR/node-$A"
+fi
+
+if [ ! -x "$NODE" ]; then
+    echo "preflight: no usable Node runtime at $NODE" >&2
+    exit 1
 fi
 
 # Bound the heap. A 250-camera scan holds under 4 MB of results, so 128 MB is
