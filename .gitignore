@@ -51,3 +51,6 @@ acap/*.eap
 # Pitch deck generator. Internal positioning; built with `node deck.mjs`, output
 # lands in build/ which is already ignored. Kept out of the public repo.
 deck.mjs
+
+# Wrangler local cache (pages deploy)
+.wrangler/

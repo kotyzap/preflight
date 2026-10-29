@@ -862,7 +862,11 @@ ${bySection}
     var btn=bform.querySelector('button[type=submit]');
     btn.disabled=true; bstat.className='beta-status'; bstat.textContent='Sending…';
     fetch(bform.action,{method:'POST',body:new FormData(bform),headers:{Accept:'application/json'}})
-      .then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+      .then(function(r){
+        var fallback='Could not send the request (HTTP '+r.status+'). Please try again later.';
+        return r.json().then(function(d){ if(!d.ok && !d.error) d.error=fallback; return d; },
+                             function(){ return {ok:false, error:fallback}; });
+      })
       .then(function(d){
         if(!d.ok) throw new Error(d.error||'');
         bform.innerHTML='<div class="beta-done"><h3>Request sent</h3><p class="beta-sub">Thanks. You will get a reply by email.</p>'+

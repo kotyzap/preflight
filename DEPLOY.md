@@ -54,7 +54,7 @@ root) pick it up.
 
 One-time setup:
 
-1. **Email → Email Sending**: onboard `4xs.dev` (adds the DNS records).
+1. **Email → Email Sending**: onboard the sending domain — here `mail.4xs.dev` (adds the DNS records).
 2. **Email → Email Routing → Destination addresses**: add and verify `kotyza@gmail.com`
    (sending to a verified destination is free).
 3. **My Profile → API Tokens**: create a token with **Email Sending: Edit** on the account.
@@ -64,7 +64,7 @@ One-time setup:
    |---|---|---|
    | `CF_ACCOUNT_ID` | text | your account ID |
    | `CF_EMAIL_TOKEN` | **secret** | the token from step 3 |
-   | `BETA_FROM` | text | `preflight@4xs.dev` |
+   | `BETA_FROM` | text | `preflight@mail.4xs.dev` |
    | `BETA_TO` | text | `kotyza@gmail.com` |
 
 5. Redeploy (variables apply to new deployments only).
