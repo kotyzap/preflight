@@ -1,12 +1,12 @@
 {
   "$schema": "./rules.schema.json",
-  "rulesetVersion": "3.1.0",
-  "generated": "2026-09-06",
+  "rulesetVersion": "3.1.1",
+  "generated": "2026-10-29",
   "owner": "Pavel Kotyza · 4XS.dev",
   "sources": {
     "axis-os": {
-      "title": "AXIS OS — Upcoming breaking changes",
-      "url": "https://help.axis.com/en-us/axis-os#upcoming-breaking-changes"
+      "title": "AXIS OS — Changes in AXIS OS 13",
+      "url": "https://help.axis.com/en-us/axis-os#changes-in-axis-os-13"
     }
   },
   "tiers": {
@@ -90,11 +90,11 @@
       "tier": "A",
       "version": "13.0",
       "title": "Unsigned ACAPs no longer permitted",
-      "summary": "Only signed ACAP applications are accepted. The AllowUnsigned escape hatch is removed.",
+      "summary": "Only signed ACAP applications are accepted. The AllowUnsigned escape hatch is removed. Applications installed before AXIS OS 12.8 must be reinstalled on AXIS OS 12.8 or later before upgrading to AXIS OS 13: their signature status was not persisted at install time, so AXIS OS 12.11 can show them as unsigned even when they were signed.",
       "impact": "Any unsigned application currently running on a camera that had AllowUnsigned set will fail re-installation, which triggers A2.",
       "detection": {
         "method": "vapix-param",
-        "sketch": "SignatureStatus attribute per application in list.cgi. \"Signed\" passes; \"Unknown\" or \"Unsigned\" is a rollback candidate.",
+        "sketch": "SignatureStatus attribute per application in list.cgi. \"Signed\" passes; \"Unknown\" or \"Unsigned\" is a rollback candidate. \"Unknown\" also covers signed applications installed before AXIS OS 12.8 — the fix for those is a reinstall on 12.8 or later, not a new build.",
         "feasibility": "trivial",
         "status": "verified"
       },
@@ -102,7 +102,8 @@
         "/axis-cgi/applications/config.cgi?action=set&name=AllowUnsigned"
       ],
       "source": "axis-os",
-      "benchNote": "Confirmed on Q1656/12.11.77: SignatureStatus present on every application. Vendor apps report Signed; four locally built apps report Unknown. Absent on M1137/10.12.300."
+      "benchNote": "Confirmed on Q1656/12.11.77: SignatureStatus present on every application. Vendor apps report Signed; four locally built apps report Unknown. Absent on M1137/10.12.300.",
+      "note": "Axis recommends going through an AXIS OS 12 LTS release (version still to be announced), reinstalling existing applications and redoing their configuration there, then upgrading to AXIS OS 13."
     },
     {
       "id": "A5",
@@ -563,7 +564,7 @@
       "tier": "C",
       "version": "13.0",
       "title": "Recording system rewritten",
-      "summary": "Recording IDs are capped at 24 hours with a 1 hour default and a continuous sequence now spans multiple IDs. record/list.cgi returns more IDs. exportrecording.cgi is extended for trailing IDs. H.264 header timestamps are not implemented in the new system. Ongoing recordings cannot be removed directly — they must be stopped first. Recording files moved to a new on-disk location with a new naming scheme. RTSP failoverrecordinglength is no longer supported. EstimatedFileSize is removed from the export API.",
+      "summary": "Recording IDs are capped at 24 hours with a 1 hour default and a continuous sequence now spans multiple IDs. record/list.cgi returns more IDs. exportrecording.cgi is extended for trailing IDs. H.264 header timestamps are not implemented in the new system. Ongoing recordings cannot be removed directly — they must be stopped first. Recording files moved to a new on-disk location with a new naming scheme. RTSP failoverrecordinglength is ignored, and RTSP GET_PARAMETER Failover-Recording-ID now returns 451. EstimatedFileSize is removed from the export API.",
       "impact": "The largest single item on the page for anyone with a recording integration. Several independent ways to break at once.",
       "detection": {
         "method": "client-side",

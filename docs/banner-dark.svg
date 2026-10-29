@@ -38,7 +38,7 @@
   <g transform="translate(1056,300)">
     <rect width="184" height="92" rx="12" fill="#1c1f24" stroke="#2b2e35"/>
     <rect x="12" y="0" width="160" height="4" rx="2" fill="#2b2e35"/>
-    <text x="18" y="50" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="32" font-weight="700" fill="#e8e8e6">3.1.0</text>
-    <text x="18" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#9aa1ae">ruleset · 2026-09-06</text>
+    <text x="18" y="50" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="32" font-weight="700" fill="#e8e8e6">3.1.1</text>
+    <text x="18" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#9aa1ae">ruleset · 2026-10-29</text>
   </g>
 </svg>

@@ -145,7 +145,7 @@ checked, argued with, and corrected. Issues and pull requests on the rules are t
 ---
 
 Pavel Kotyza · [4XS.dev](https://4xs.dev) · every rule sourced from
-<https://help.axis.com/en-us/axis-os#upcoming-breaking-changes>
+<https://help.axis.com/en-us/axis-os#changes-in-axis-os-13>
 
 <sub>Preflight is a personal project by Pavel Kotyza, 4xs.dev. It is not affiliated with, endorsed by or
 sponsored by Axis Communications AB or CamStreamer. AXIS and AXIS OS are trademarks of Axis
