@@ -9,7 +9,7 @@ This repo is **Step 0** of the plan: the ruleset and the public page. No probe, 
 ## Layout
 
 ```
-rules.json     the single source of truth — 66 rules, every one citing public Axis docs
+rules.json     the single source of truth — 67 rules, every one citing public Axis docs
 build.mjs      zero-dependency generator + validator: rules.json → dist/ (the public site)
 deck.mjs       pitch deck → build/deck.html. NOT in dist/ — that directory is published.
 probe-q1.sh    read-only bench probe used to verify detections against real cameras
@@ -42,7 +42,7 @@ publishes that directory verbatim.
 
 | Field | Meaning |
 |---|---|
-| `id` | `A1`–`A8` blocks the upgrade · `B*` breaks the app · `C*` breaks the integration · `L*` already in force · `F*` AXIS OS 14 |
+| `id` | `A1`–`A9` blocks the upgrade · `B*` breaks the app · `C*` breaks the integration · `L*` already in force · `F*` AXIS OS 14 |
 | `tier` | `A` / `B` / `C` / `future` — ordered by "would actually stop an upgrade" |
 | `version` | AXIS OS version the change lands in |
 | `impact` | What it does to the reader, in their terms. Not a restatement of the summary. |
@@ -51,18 +51,18 @@ publishes that directory verbatim.
 | `detection.blockedBy` | Which open question gates this detection |
 | `source` | Key into `sources`. Every rule has one. |
 
-Nothing is currently `verified` — no detection has been run against hardware yet.
+9 rules are `verified` on bench hardware; the rest are `designed` or `open`.
 
 ## Coverage
 
 | | Count |
 |---|---|
-| Tier A — blocks or rolls back | 8 |
+| Tier A — blocks or rolls back | 9 |
 | Tier B — breaks the app | 13 |
 | Tier C — breaks the integration (incl. 14 already in force) | 41 |
 | AXIS OS 14 / 2028 | 4 |
-| **Total** | **66** |
-| 32-bit models under the Y2038 ABI break (A5) | 58 |
+| **Total** | **67** |
+| 32-bit models under the Y2038 ABI break (A5) | 59 |
 
 ## Changes from the original plan
 
