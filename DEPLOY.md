@@ -74,6 +74,40 @@ function logs `beta: send failed <status> <body>` (Pages → Deployments → Fun
 → Real-time logs). Spam protection is a honeypot field only; add Turnstile if it
 gets abused.
 
+## Ko-fi licence keys (`functions/api/kofi.js`)
+
+A Ko-fi purchase → a signed `PF1.…` key → emailed to the buyer. Same key format and
+key pair as `tools/issue-key.mjs`; the ACAP verifies it offline.
+
+1. Ko-fi → Shop → add a digital item "Preflight for OS 13 — network scan licence", €5 (the Ko-fi page is in EUR).
+   Assets → **Redirect buyer to a URL**: `https://preflight.4xs.dev/thanks`.
+   Its link ends in `/s/<code>`; that `<code>` is `KOFI_SHOP_CODE`, and the whole link
+   is `BUY_URL` in `acap/app/html/index.html`.
+2. Pages → Settings → Variables and secrets (Production):
+   - `KOFI_VERIFICATION_TOKEN` (secret) — Ko-fi → Settings → API → Webhooks.
+   - `PREFLIGHT_SIGNING_KEY` (secret) — contents of `~/.preflight/signing.pem`.
+   - `KOFI_SHOP_CODE` — from step 1. Without it, any Ko-fi payment ≥ `PREFLIGHT_MIN_AMOUNT`
+     (default 5) issues a key, including payments meant for other projects.
+   - `CF_ACCOUNT_ID`, `CF_EMAIL_TOKEN`, `BETA_FROM`, `BETA_TO` — already set for the beta form.
+   - Bindings → KV namespace → variable `PREFLIGHT_KEYS` (create a namespace, e.g. `preflight-keys`).
+     The webhook keeps each key there for an hour under the buyer's email, so `/thanks`
+     (`functions/api/key.js`) can show it immediately. Anyone who knows a buyer's email can
+     read their key during that hour — accepted at €5. Without the binding: email only.
+3. Ko-fi → Settings → API → Webhook URL: `https://preflight.4xs.dev/api/kofi`.
+   Ko-fi has one webhook URL per account: if it already points at another project,
+   that handler has to forward Preflight orders here (or the other way round).
+4. Check: `curl https://preflight.4xs.dev/api/kofi` lists which variables are set.
+   Then Ko-fi's "Send test" on the webhook page — a test is a Donation, so it is
+   ignored when `KOFI_SHOP_CODE` is set (answer `ignored`), which is correct.
+
+The private key now lives in Cloudflare as well as on the Mac. Anyone with access to
+the Pages project's secrets can mint keys; rotating means a new public key in the ACAP
+and a new build, and every issued key stops verifying.
+
+The buyer email goes through Cloudflare Email Sending to an arbitrary address. If the
+account only allows verified destinations, sending fails with a 500 and Ko-fi retries;
+the log (`kofi: send failed`) says so.
+
 ## Custom domain
 
 Add `preflight.4xs.dev` in **Pages → Custom domains**. Cloudflare issues the

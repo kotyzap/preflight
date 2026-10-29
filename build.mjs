@@ -4,8 +4,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = dirname(new URL(import.meta.url).pathname);
+// fileURLToPath, not URL.pathname: the latter keeps %20, so a path with a space
+// ("External SSD") pointed at a directory that does not exist.
+const ROOT = dirname(fileURLToPath(import.meta.url));
 const outArg = process.argv.indexOf('--out');
 const OUT = resolve(ROOT, outArg > -1 ? process.argv[outArg + 1] : 'dist/index.html');
 
@@ -205,7 +208,7 @@ code{background:var(--code-bg);padding:.1em .35em;border-radius:4px;
 
 /* section scaffolding: every part of the page is its own full-width band */
 .band{padding:64px 0;border-top:1px solid var(--line)}
-.band-head{margin:0 0 28px;max-width:72ch}
+.band-head{margin:0 0 28px}
 .eyebrow{display:inline-block;font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;
   color:var(--accent);margin-bottom:10px}
 .band-head h2{font-size:clamp(24px,3vw,30px);line-height:1.2;letter-spacing:-.02em;margin:0 0 10px}
@@ -919,7 +922,7 @@ ${bySection}
 const PUBLIC_FILES = new Set([
   'index.html', '404.html', 'rules.json',
   'favicon.svg', 'og.svg', 'og.png',
-  '_headers', 'robots.txt', 'sitemap.xml',
+  '_headers', 'robots.txt', 'sitemap.xml', 'thanks.html',
 ]);
 
 const DIST = dirname(OUT);
@@ -1020,6 +1023,106 @@ a{color:#c2410c}
 <p>The AXIS OS 13 breaking-change rules — all ${data.rules.length} of them, each citing Axis — are on the front page.</p>
 <p><a href="/">Go to the rules</a> · <a href="/rules.json">rules.json</a></p>
 </main></body></html>
+`
+);
+
+// Where Ko-fi sends a buyer after paying (the shop item's "Redirect buyer to a URL").
+// Shows the licence key as soon as the webhook has issued it (functions/api/key.js),
+// and says plainly that the same key is on its way by email.
+write(
+  'thanks.html',
+  `<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thank you — Preflight for OS 13</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f7f7f5;--surface:#fff;--ink:#16181d;--muted:#5c6270;--line:#e2e2dd;--accent:#c2410c;--code:#f0f0ec;--ok:#0d6f68}
+html[data-theme="dark"]{--bg:#131417;--surface:#1a1c21;--ink:#e8e8e6;--muted:#9aa1ae;--line:#2b2e35;--accent:#fb923c;--code:#22252b;--ok:#4fb3a7}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px}
+main{max-width:560px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px 24px}
+h1{font-size:22px;margin:0 0 8px;letter-spacing:-.01em}
+p{margin:0 0 14px;color:var(--muted)}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1;min-width:0;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+button{font:600 14px/1 inherit;padding:11px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button[disabled]{opacity:.55;cursor:default}
+html[data-theme="dark"] button{color:#111}
+#theme{position:fixed;top:14px;right:14px;background:var(--surface);color:var(--ink);border-color:var(--line);padding:8px 10px}
+.key{display:block;margin:6px 0 10px;padding:12px;background:var(--code);border-radius:6px;
+  font:13px/1.45 ui-monospace,Menlo,monospace;word-break:break-all;user-select:all}
+ol{margin:0 0 14px;padding-left:20px}
+li{margin-bottom:4px}
+#msg{font-size:14px;margin-top:12px}
+#msg.ok{color:var(--ok)}
+a{color:var(--accent)}
+</style></head><body>
+<button id="theme" type="button" aria-label="Toggle colour theme">◐</button>
+<main>
+<h1>Thank you — payment received.</h1>
+<p>Your licence key is on its way to the email address you paid with. You can also get it here right away.</p>
+<form id="f">
+  <label for="email">Email on your Ko-fi receipt</label>
+  <div class="row"><input id="email" type="email" required autocomplete="email" placeholder="you@example.com">
+  <button id="go" type="submit">Show my key</button></div>
+</form>
+<div id="msg" role="status"></div>
+<div id="done" hidden>
+  <code class="key" id="key"></code>
+  <div class="row" style="margin-bottom:16px"><button id="copy" type="button">Copy key</button></div>
+  <ol>
+    <li>Go back to the <strong>Preflight</strong> tab on your camera.</li>
+    <li>Paste the key into the key field and click <strong>Save</strong>. The other cameras' findings appear straight away.</li>
+  </ol>
+  <p>The key is checked on the camera itself — the camera does not need internet access. Keep the email; it is your copy.</p>
+</div>
+<!--email_off--><p style="margin:18px 0 0;font-size:13px">No key after a few minutes? Check spam, then write to
+<a href="mailto:kotyza@gmail.com?subject=Preflight%20licence%20key">kotyza@gmail.com</a> with your Ko-fi receipt.</p><!--/email_off-->
+</main>
+<script>
+(function () {
+  var root = document.documentElement, $ = function (id) { return document.getElementById(id); };
+  try { var t = localStorage.getItem('preflight-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  $('theme').onclick = function () {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('preflight-theme', root.dataset.theme); } catch (e) {}
+  };
+  var tries = 0;
+  function ask(email) {
+    fetch('/api/key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.key) {
+          $('key').textContent = d.key; $('done').hidden = false; $('f').hidden = true;
+          $('msg').className = 'ok'; $('msg').textContent = 'Here is your key. The same key has been emailed to you.';
+          return;
+        }
+        if (d.error) { $('msg').textContent = d.error; $('go').disabled = false; return; }
+        // Ko-fi's webhook can arrive a few seconds after the redirect: keep asking for two minutes.
+        if (++tries < 40) {
+          $('msg').textContent = 'Waiting for Ko-fi to confirm the payment…';
+          return setTimeout(function () { ask(email); }, 3000);
+        }
+        $('msg').textContent = 'Not confirmed yet. Your key will arrive by email — or check the address and try again.';
+        $('go').disabled = false;
+      })
+      .catch(function () { $('msg').textContent = 'Could not reach the server. Your key will still arrive by email.'; $('go').disabled = false; });
+  }
+  $('f').onsubmit = function (e) {
+    e.preventDefault(); tries = 0; $('go').disabled = true; ask($('email').value.trim());
+  };
+  $('copy').onclick = function () {
+    var k = $('key').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(k) : Promise.reject())
+      .then(function () { $('copy').textContent = 'Copied'; })
+      .catch(function () { $('copy').textContent = 'Select the key and copy it'; });
+  };
+})();
+</script>
+</body></html>
 `
 );
 
