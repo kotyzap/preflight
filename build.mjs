@@ -78,13 +78,19 @@ function renderRule(r) {
         .join('')}</div></details>`
     : '';
 
-  return `<article class="rule" id="${esc(r.id)}" data-tier="${esc(r.tier)}" data-version="${esc(r.version)}" data-method="${esc(det.method ?? 'none')}">
-  <header>
+  // <details>: collapsed shows id, title, pills and a two-line summary; the
+  // evidence opens on demand. The hero rule starts open.
+  return `<details class="rule" id="${esc(r.id)}" data-tier="${esc(r.tier)}" data-version="${esc(r.version)}" data-method="${esc(det.method ?? 'none')}"${r.hero ? ' open' : ''}>
+  <summary>
+  <span class="rhead">
     <a class="rid" href="#${esc(r.id)}">${esc(r.id)}</a>
     <h3>${esc(r.title)}</h3>
-    <span class="pill pill-ver">OS ${esc(r.version)}</span>${applied}${hero}${conf}
-  </header>
+    <span class="pills"><span class="pill pill-ver">OS ${esc(r.version)}</span>${applied}${hero}${conf}</span>
+    <span class="chev" aria-hidden="true"></span>
+  </span>
   <p class="summary">${esc(r.summary)}</p>
+  </summary>
+  <div class="rbody">
   ${r.impact ? `<p class="impact"><strong>What it does to you.</strong> ${esc(r.impact)}</p>` : ''}
   ${changed}
   ${list('Removed', r.paramsRemoved)}
@@ -104,15 +110,20 @@ function renderRule(r) {
   ${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}
   ${r.related?.length ? `<p class="note">See also ${r.related.map((x) => `<a href="#${esc(x)}">${esc(x)}</a>`).join(', ')}.</p>` : ''}
   <a class="src" href="${esc(srcUrl(r.source))}" rel="noopener">Axis source ↗</a>
-</article>`;
+  </div>
+</details>`;
 }
+
+const tierName = (t) => (t === 'future' ? '2028' : `Tier ${t}`);
 
 const bySection = TIER_ORDER.map((t) => {
   const rules = data.rules.filter((r) => r.tier === t);
   if (!rules.length) return '';
-  return `<section class="tier" data-tier="${t}">
-  <h2><span class="tierbadge tb-${t}">${t === 'future' ? '2028' : `Tier ${t}`}</span> ${esc(tierMeta[t].label)}</h2>
-  <p class="tierblurb">${esc(tierMeta[t].blurb)}</p>
+  return `<section class="tier" id="tier-${t}" data-tier="${t}">
+  <div class="tierhead">
+    <h2><span class="tierbadge tb-${t}">${tierName(t)}</span> ${esc(tierMeta[t].label)} <span class="tiercount">${rules.length}</span></h2>
+    <p class="tierblurb">${esc(tierMeta[t].blurb)}</p>
+  </div>
   ${rules.map(renderRule).join('\n')}
 </section>`;
 }).join('\n');
@@ -143,12 +154,12 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Preflight — will your Axis cameras survive AXIS OS 13?</title>
+<title>Preflight for OS 13 — will your Axis cameras survive the upgrade?</title>
 <meta name="description" content="${esc(DESCRIPTION)}">
 <link rel="canonical" href="${SITE}/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}/">
-<meta property="og:site_name" content="Preflight">
+<meta property="og:site_name" content="Preflight for OS 13">
 <meta property="og:title" content="AXIS OS 13 doesn't warn you. It rolls back.">
 <meta property="og:description" content="${esc(DESCRIPTION)}">
 <meta name="twitter:card" content="summary_large_image">
@@ -164,94 +175,191 @@ const html = `<!doctype html>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{
-  --bg:#f7f7f5; --surface:#fff; --ink:#16181d; --muted:#5c6270; --line:#e2e2dd;
-  --accent:#c2410c; --accent-soft:#fff1e9;
+  --bg:#eef0f3; --band:#f7f8fa; --surface:#fff; --ink:#16181d; --muted:#5c6270; --line:#dfe2e7; --line-soft:#eceef1;
+  --accent:#c2410c; --accent-soft:#fff1e9; --accent-line:#fbd5bf;
   --a:#b91c1c; --a-bg:#fef2f2; --b:#b45309; --b-bg:#fffbeb; --c:#1d4ed8; --c-bg:#eff6ff; --f:#4b5563; --f-bg:#f3f4f6;
-  --code-bg:#f0f0ec;
+  --code-bg:#f1f2f4;
+  --deep:#16181d; --deep-ink:#eceef2; --deep-muted:#a3a9b6; --deep-line:#2c3038;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  --shadow-lg:0 4px 10px rgba(16,24,40,.06),0 12px 32px rgba(16,24,40,.08);
 }
 html[data-theme="dark"]{
-  --bg:#131417; --surface:#1a1c21; --ink:#e8e8e6; --muted:#9aa1ae; --line:#2b2e35;
-  --accent:#fb923c; --accent-soft:#2a1a10;
+  --bg:#0f1013; --band:#15171b; --surface:#1c1f24; --ink:#e8e8e6; --muted:#9aa1ae; --line:#2b2e35; --line-soft:#24272d;
+  --accent:#fb923c; --accent-soft:#2a1a10; --accent-line:#4a2a14;
   --a:#f87171; --a-bg:#2a1618; --b:#fbbf24; --b-bg:#2a2110; --c:#7dabff; --c-bg:#141d2e; --f:#9ca3af; --f-bg:#212429;
-  --code-bg:#22252b;
+  --code-bg:#262a31;
+  --deep:#1f232a; --deep-ink:#eceef2; --deep-muted:#a3a9b6; --deep-line:#343944;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 28px rgba(0,0,0,.45);
 }
 *{box-sizing:border-box}
+html{scroll-padding-top:128px}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   -webkit-font-smoothing:antialiased}
-.wrap{max-width:920px;margin:0 auto;padding:0 20px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+.narrow > *{max-width:860px}
 a{color:var(--accent)}
 code{background:var(--code-bg);padding:.1em .35em;border-radius:4px;
   font:.86em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-word}
 
+/* section scaffolding: every part of the page is its own full-width band */
+.band{padding:64px 0;border-top:1px solid var(--line)}
+.band-head{margin:0 0 28px;max-width:72ch}
+.eyebrow{display:inline-block;font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px}
+.band-head h2{font-size:clamp(24px,3vw,30px);line-height:1.2;letter-spacing:-.02em;margin:0 0 10px}
+.band-head p{color:var(--muted);margin:0;font-size:17px}
+
 /* header */
-.top{border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:20}
-.top .wrap{display:flex;align-items:center;gap:16px;height:56px}
-.brand{font-weight:700;letter-spacing:-.01em}
+.top{border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);position:sticky;top:0;z-index:20}
+.top .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.brand{font-weight:700;letter-spacing:-.01em;font-size:17px;display:flex;align-items:center;gap:9px;color:var(--ink);text-decoration:none}
+.brand i{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center}
+.brand i svg{width:16px;height:16px}
 .brand span{color:var(--accent)}
-.top nav{margin-left:auto;display:flex;gap:14px;align-items:center;font-size:14px}
-.top nav a{color:var(--muted);text-decoration:none}
-.top nav a:hover{color:var(--ink)}
-#theme{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;
-  width:32px;height:32px;cursor:pointer;font-size:15px;line-height:1}
+.top nav{margin-left:auto;display:flex;gap:4px;align-items:center;font-size:14px}
+.top nav a{color:var(--muted);text-decoration:none;padding:7px 11px;border-radius:7px}
+.top nav a:hover{color:var(--ink);background:var(--code-bg)}
+#theme{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:8px;margin-left:6px;
+  width:34px;height:34px;cursor:pointer;font-size:15px;line-height:1}
 #theme:hover{color:var(--ink);border-color:var(--muted)}
+@media (max-width:760px){ .top nav a.opt{display:none} }
+@media (max-width:420px){ .top nav a{padding:7px 7px} }
 
 /* hero */
-.hero{padding:64px 0 40px}
-.hero h1{font-size:clamp(28px,4.4vw,44px);line-height:1.15;letter-spacing:-.02em;margin:0 0 18px;max-width:22ch}
-.lede{font-size:19px;color:var(--muted);max-width:62ch;margin:0 0 28px}
-.quote{background:var(--a-bg);border-left:3px solid var(--a);padding:18px 22px;border-radius:0 8px 8px 0;margin:0 0 22px}
-.quote p{margin:0 0 8px;font-size:17px}
+.hero{padding:48px 0 56px;border-top:0;
+  background:radial-gradient(1000px 420px at 85% -10%,var(--accent-soft),transparent 70%),var(--band)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:48px;align-items:start}
+.hero h1{font-size:clamp(32px,4.6vw,52px);line-height:1.08;letter-spacing:-.03em;margin:0 0 20px;max-width:16ch}
+.hero h1 em{font-style:normal;color:var(--a)}
+.lede{font-size:19px;color:var(--muted);max-width:52ch;margin:0 0 24px}
+.quote{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--a);padding:20px 22px;
+  border-radius:10px;margin:0 0 18px;box-shadow:var(--shadow)}
+.quote p{margin:0 0 10px;font-size:16px}
 .quote p:last-child{margin:0}
 .quote cite{font-style:normal;font-size:13px;color:var(--muted)}
-.punch{font-size:18px;max-width:64ch}
+.punch{font-size:16px;margin:0;color:var(--ink)}
 .punch strong{color:var(--a)}
-.stats{display:flex;flex-wrap:wrap;gap:10px;margin:30px 0 0}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:14px}
-.stat b{font-size:20px;display:block;line-height:1.2}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:44px 0 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--line);border-radius:10px;
+  padding:14px 16px;font-size:13px;color:var(--muted);text-decoration:none;box-shadow:var(--shadow)}
+a.stat:hover{border-color:var(--muted)}
+.stat b{font-size:26px;display:block;line-height:1.15;color:var(--ink);letter-spacing:-.02em}
+.stat.s-A{border-top-color:var(--a)} .stat.s-B{border-top-color:var(--b)}
+.stat.s-C{border-top-color:var(--c)} .stat.s-future{border-top-color:var(--f)}
+@media (max-width:900px){ .hero-grid{grid-template-columns:1fr;gap:28px} .stats{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:480px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} .hero{padding-top:44px} }
 
-/* filters */
-.filters{position:sticky;top:56px;z-index:10;background:var(--bg);
-  border-bottom:1px solid var(--line);padding:12px 0;margin-bottom:8px}
-.filters .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.filters label{font-size:13px;color:var(--muted);margin-right:2px}
-button.f{background:var(--surface);border:1px solid var(--line);color:var(--muted);
-  border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
-button.f:hover{color:var(--ink)}
+/* checker */
+.checker{border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow-lg);
+  padding:22px 24px}
+.ck-title{font-size:19px;margin:0 0 4px;letter-spacing:-.01em}
+.ck-lede{font-size:14px;color:var(--muted);margin:0 0 14px}
+.ck-sum{border:1px solid var(--accent-line);border-left:4px solid var(--accent);background:var(--surface);border-radius:10px;padding:14px 18px}
+.ck-sum h4{margin:0 0 8px;font-size:16px}
+.ck-sum .tiers{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.ck-sum p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.relbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--accent-soft);border:1px solid var(--accent-line);
+  border-radius:12px;padding:10px 14px;margin:0 0 10px;font-size:14px}
+.relbar button{margin-left:auto;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:999px;
+  padding:5px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.ck-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+#ck-model{flex:1;min-width:220px}
+#ck-model,#ck-os{background:var(--band);border:1px solid var(--line);color:var(--ink);
+  border-radius:9px;padding:13px 15px;font-size:16px;font-family:inherit}
+#ck-model:focus,#ck-os:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.ck-out:empty{display:none}
+.ck-hint{font-size:13px;color:var(--muted);margin:16px 0 0}
+.ck-cta{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:10px;padding:18px 20px;margin-top:4px}
+.ck-cta h4{margin:0 0 6px;font-size:15px}
+.ck-cta p{margin:0 0 14px;font-size:14px;max-width:74ch}
+.ck-go{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+  border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600}
+.ck-go:hover{filter:brightness(1.08)}
+.ck-out{display:grid;gap:10px}
+.ck-card{border:1px solid var(--line);border-left:4px solid var(--line);background:var(--band);border-radius:10px;padding:14px 18px}
+.ck-card.bad{border-color:transparent;border-left-color:var(--a);background:var(--a-bg)}
+.ck-card.nopath{border-color:transparent;border-left-color:var(--c);background:var(--c-bg)}
+.ck-card.nopath b{color:var(--c)}
+.ck-card.warn{border-color:transparent;border-left-color:var(--b);background:var(--b-bg)}
+.ck-card.ok{border-color:transparent;border-left-color:var(--c);background:var(--c-bg)}
+.ck-card h4{margin:0 0 4px;font-size:15px}
+.ck-card p{margin:0;font-size:14px;color:var(--muted)}
+.ck-card a{font-size:13px}
+
+/* rules: sidebar + column */
+.band-rules{background:var(--band)}
+.rules-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:36px;align-items:start}
+.toc{position:sticky;top:84px;font-size:14px}
+.toc h4{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.toc a{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;padding:8px 10px;border-radius:8px}
+.toc a:hover{background:var(--surface)}
+.toc .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+.toc .n{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.toc hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.dot-A{background:var(--a)} .dot-B{background:var(--b)} .dot-C{background:var(--c)} .dot-future{background:var(--f)}
+@media (max-width:1000px){ .rules-grid{grid-template-columns:minmax(0,1fr)} .toc{display:none} }
+
+.filters{position:sticky;top:72px;z-index:10;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:12px 14px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.fgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.filters label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+button.f,#expand{background:var(--band);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+button.f:hover,#expand:hover{color:var(--ink);border-color:var(--muted)}
 button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
-#q{flex:1;min-width:160px;background:var(--surface);border:1px solid var(--line);color:var(--ink);
-  border-radius:999px;padding:6px 14px;font-size:13px}
-#count{font-size:13px;color:var(--muted)}
+.fsearch{display:flex;gap:8px;align-items:center;flex:1 1 260px}
+#q{flex:1;min-width:140px;background:var(--band);border:1px solid var(--line);color:var(--ink);
+  border-radius:999px;padding:7px 14px;font-size:14px;font-family:inherit}
+#q:focus{outline:2px solid var(--accent);outline-offset:1px}
+#count{font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 
-/* tiers + rules */
-.tier{margin:44px 0}
-.tier h2{font-size:20px;display:flex;align-items:center;gap:10px;margin:0 0 6px;letter-spacing:-.01em}
-.tierbadge{font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.02em}
+.tier{margin:36px 0 0}
+.tierhead{margin:0 0 14px;padding:0 0 0 2px}
+.tier h2{font-size:21px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 6px;letter-spacing:-.01em}
+.tiercount{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface);border:1px solid var(--line);
+  border-radius:999px;padding:1px 9px}
+.tierbadge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;letter-spacing:.02em}
 .tb-A{background:var(--a-bg);color:var(--a)} .tb-B{background:var(--b-bg);color:var(--b)}
 .tb-C{background:var(--c-bg);color:var(--c)} .tb-future{background:var(--f-bg);color:var(--f)}
-.tierblurb{color:var(--muted);margin:0 0 20px;max-width:70ch}
+.tierblurb{color:var(--muted);margin:0;max-width:70ch}
 
-.rule{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:0 0 12px}
-.rule[data-tier="A"]{border-left:3px solid var(--a)}
-.rule[data-tier="B"]{border-left:3px solid var(--b)}
-.rule[data-tier="C"]{border-left:3px solid var(--c)}
-.rule[data-tier="future"]{border-left:3px solid var(--f)}
-.rule header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-bottom:8px}
+.rule{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;
+  margin:0 0 10px;box-shadow:var(--shadow);transition:border-color .15s}
+.rule[data-tier="A"]{border-left-color:var(--a)}
+.rule[data-tier="B"]{border-left-color:var(--b)}
+.rule[data-tier="C"]{border-left-color:var(--c)}
+.rule[data-tier="future"]{border-left-color:var(--f)}
+.rule > summary{list-style:none;cursor:pointer;padding:16px 20px 14px}
+.rule > summary::-webkit-details-marker{display:none}
+.rule > summary:hover h3{color:var(--accent)}
+.rule > summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}
+.rhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:6px}
 .rid{font:600 12px/1 ui-monospace,Menlo,monospace;background:var(--code-bg);color:var(--muted);
   padding:5px 7px;border-radius:5px;text-decoration:none}
-.rule h3{font-size:17px;margin:0;flex:1;min-width:min(100%,20ch);letter-spacing:-.01em}
+.rule h3{font-size:17px;margin:0;flex:1;min-width:min(100%,20ch);letter-spacing:-.01em;line-height:1.35}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.chev{width:22px;height:22px;flex:0 0 22px;border-radius:6px;display:grid;place-items:center;color:var(--muted)}
+.chev::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.rule[open] .chev::before{transform:translateY(2px) rotate(-135deg)}
 .pill{font-size:11px;padding:3px 8px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);color:var(--muted)}
 .pill-hero{background:var(--a-bg);color:var(--a);border-color:transparent;font-weight:600}
 .pill-warn{background:var(--b-bg);color:var(--b);border-color:transparent}
 .pill-applied{background:var(--f-bg);color:var(--f);border-color:transparent}
-.summary{margin:0 0 10px}
+.summary{margin:0;color:var(--muted);font-size:15px}
+.rule:not([open]) .summary{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rule[open] .summary{color:var(--ink);font-size:16px}
+.rbody{padding:4px 20px 18px;border-top:1px solid var(--line-soft);margin:0 0 0;padding-top:14px}
 .impact{margin:0 0 12px;color:var(--muted)}
 .impact strong{color:var(--ink)}
-.kv,.detect{display:flex;gap:10px;font-size:14px;margin:8px 0;align-items:baseline}
-.k{flex:0 0 74px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
+.kv,.detect{display:flex;gap:12px;font-size:14px;margin:8px 0;align-items:baseline}
+.k{flex:0 0 84px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
 .v{flex:1;min-width:0}
 .arrow{color:var(--muted);font-size:13px}
-.detect{border-top:1px dashed var(--line);padding-top:10px;margin-top:12px}
+.detect{background:var(--band);border-radius:8px;padding:10px 12px;margin-top:14px}
 .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;background:var(--code-bg);color:var(--muted);margin-left:4px;white-space:nowrap}
 .tag-model-list,.tag-vapix-param{background:var(--c-bg);color:var(--c)}
 .tag-eap-binary,.tag-client-side{background:var(--b-bg);color:var(--b)}
@@ -261,112 +369,82 @@ button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent
 .tag-blocked{background:var(--b-bg);color:var(--b)}
 .correction{background:var(--b-bg);border-radius:8px;padding:12px 14px;font-size:14px;margin:12px 0 0}
 .note{font-size:14px;color:var(--muted);margin:10px 0 0}
-.src{display:inline-block;margin-top:12px;font-size:13px;text-decoration:none}
+.src{display:inline-block;margin-top:12px;font-size:13px;text-decoration:none;font-weight:600}
 .src:hover{text-decoration:underline}
 .models{margin:10px 0}
 .models summary{cursor:pointer;font-size:13px;color:var(--muted)}
 .modelgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px;
   margin-top:10px;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--muted)}
 
-/* checker */
-.checker{border:1px solid var(--line);border-radius:10px;background:var(--surface);
-  padding:24px 26px;margin:0 0 32px}
-.checker h2{margin:0 0 8px;font-size:19px}
-.ck-lede{color:var(--muted);max-width:70ch;margin:0 0 18px}
-.ck-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-#ck-model{flex:1;min-width:220px}
-#ck-model,#ck-os{background:var(--bg);border:1px solid var(--line);color:var(--ink);
-  border-radius:7px;padding:11px 14px;font-size:15px;font-family:inherit}
-#ck-model:focus,#ck-os:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
-.ck-out:empty{display:none}
-.ck-hint{font-size:13px;color:var(--muted);margin:12px 0 0}
-.ck-cta{border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:16px 18px;margin-top:4px}
-.ck-cta h4{margin:0 0 6px;font-size:15px}
-.ck-cta p{margin:0 0 12px;font-size:14px;max-width:74ch}
-.ck-go{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
-  border-radius:6px;padding:9px 15px;font-size:14px;font-weight:600}
-.ck-go:hover{filter:brightness(1.08)}
-.ck-out{display:grid;gap:10px}
-.ck-card{border-left:3px solid var(--line);background:var(--bg);border-radius:0 7px 7px 0;padding:13px 16px}
-.ck-card.bad{border-left-color:var(--a);background:var(--a-bg)}
-.ck-card.nopath{border-left-color:var(--c);background:var(--c-bg)}
-.ck-card.nopath b{color:var(--c)}
-.ck-card.warn{border-left-color:var(--b);background:var(--b-bg)}
-.ck-card.ok{border-left-color:var(--c);background:var(--c-bg)}
-.ck-card h4{margin:0 0 4px;font-size:15px}
-.ck-card p{margin:0;font-size:14px;color:var(--muted)}
-.ck-card a{font-size:13px}
-
-/* scanner */
-.scanner{border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin:44px 0;background:var(--surface)}
-.scanner h2{margin:0 0 12px;font-size:18px}
-.scanner p{max-width:74ch}
-.avail{background:var(--b-bg);border-radius:6px;padding:11px 14px;font-size:14px}
-.ship{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0 4px}
-.ship > div{border-top:2px solid var(--line);padding-top:10px}
-.ship > div:first-child{border-top-color:var(--accent)}
-.ship p{font-size:14px;color:var(--muted);margin:0}
-.tagn{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
-@media (max-width:640px){.ship{grid-template-columns:1fr}}
+/* scanner: the one dark band, so the product pitch reads as its own place */
+.band-scan{background:var(--deep);color:var(--deep-ink);border-top-color:var(--deep)}
+.band-scan .band-head p,.band-scan .scan-body p{color:var(--deep-muted)}
+.band-scan .band-head h2{color:#fff}
+.band-scan a{color:#fdba74}
+.band-scan strong,.band-scan em{color:var(--deep-ink)}
+.scan-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:start}
+.scan-body p{margin:0 0 16px;max-width:66ch}
+.avail{background:rgba(251,146,60,.10);border:1px solid rgba(251,146,60,.45);border-radius:10px;padding:16px 18px;font-size:14px;margin:0 0 16px}
+.band-scan .avail p{margin:0 0 14px;color:var(--deep-ink)}
+.band-scan a.ck-go{color:#fff}
+.band-scan .avail{color:var(--deep-ink)}
+.ship{display:grid;gap:12px}
+.ship > div{border:1px solid var(--deep-line);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.03)}
+.ship > div:first-child{border-color:#fb923c;background:rgba(251,146,60,.08)}
+.ship p{font-size:14px;margin:0;color:var(--deep-muted)}
+.tagn{display:block;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#fdba74;margin-bottom:8px}
+.band-scan .note{color:var(--deep-muted);border-top:1px solid var(--deep-line);padding-top:18px;margin-top:28px;max-width:none}
+@media (max-width:900px){.scan-grid{grid-template-columns:1fr;gap:24px}}
 
 /* questions + footer */
-.open{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin:44px 0}
-.open h2{margin:0 0 6px;font-size:18px}
-.open > p{color:var(--muted);margin:0 0 16px;font-size:15px}
-.open li{margin-bottom:12px}
-.open .why{color:var(--muted);font-size:14px;display:block}
-footer{border-top:1px solid var(--line);margin-top:56px;padding:28px 0 60px;color:var(--muted);font-size:14px}
+.band-open{background:var(--bg)}
+.open{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;counter-reset:q}
+.open li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+.open li strong{display:inline-block;font:600 12px/1 ui-monospace,Menlo,monospace;background:var(--accent-soft);color:var(--accent);
+  padding:5px 7px;border-radius:5px;margin-right:6px}
+.open .why{color:var(--muted);font-size:14px;display:block;margin-top:8px}
+footer{background:var(--surface);border-top:1px solid var(--line);padding:32px 0 56px;color:var(--muted);font-size:14px}
 footer a{color:var(--muted)}
+.disclaimer{font-size:13px;border-top:1px solid var(--line);padding-top:14px;margin-top:18px}
 .hidden{display:none !important}
 @media (max-width:600px){
+  .wrap{padding:0 16px}
+  .band{padding:44px 0}
+  .checker{padding:20px 18px}
   .k{flex-basis:100%} .kv,.detect{flex-wrap:wrap}
-  .filters{position:static}
+  .filters{position:static} .fsearch{flex-wrap:wrap} #q{min-width:0}
+  .rule > summary{padding:14px 16px 12px} .rbody{padding:12px 16px 16px}
+  .open{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
 <header class="top"><div class="wrap">
-  <div class="brand">Pre<span>flight</span></div>
+  <a class="brand" href="#top"><i><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M27 5 4.5 15a.7.7 0 0 0 .06 1.3l6 2.1 2.1 6a.7.7 0 0 0 1.3.06L27 5Z" fill="#fff"/></svg></i><b>Pre<span>flight</span></b></a>
   <nav>
     <a href="#check">Check a model</a>
     <a href="#tiers">Rules</a>
-    <a href="#scanner">Scanner</a>
-    <a href="#open">Open questions</a>
-    <a href="${esc(srcUrl('axis-os'))}" rel="noopener">Axis source</a>
+    <a class="opt" href="#scanner">Scanner</a>
+    <a class="opt" href="#open">Open questions</a>
+    <a class="opt" href="${esc(srcUrl('axis-os'))}" rel="noopener">Axis source ↗</a>
     <button id="theme" type="button" aria-label="Toggle colour theme" title="Toggle theme">◐</button>
   </nav>
 </div></header>
 
-<main class="wrap">
+<main id="top">
 
-<section class="hero">
-  <h1>AXIS OS 13 doesn't warn you. It rolls back.</h1>
-  <p class="lede">Point it at your Axis cameras and it tells you which ones will survive the upgrade — before you start it. Read-only. No agent, nothing installed on the camera.</p>
-
-  <blockquote class="quote">
-    <p>“If a re-installation of an ACAP results in an error… AXIS OS will initiate a rollback.”</p>
-    <p>“Compatibility field with AXIS OS major versions now mandatory in manifest.”</p>
-    <cite>— Axis, upcoming breaking changes</cite>
-  </blockquote>
-
-  <p class="punch">Read those together. The upgrade does not warn you and then proceed — <strong>it fails and reverts the camera</strong>, because of one application somebody installed years ago. With four hundred cameras you find this out one camera at a time, at night, in a maintenance window, with nothing telling you which application did it.</p>
-
-  <div class="stats">
-    ${counts.map(([t, n]) => `<div class="stat"><b>${n}</b>${t === 'future' ? '2028 items' : `Tier ${t} rules`}</div>`).join('')}
-    <div class="stat"><b>${data.rules.find((r) => r.id === 'A5').models32bit.length}</b>32-bit models</div>
-    <div class="stat"><b>${esc(data.rulesetVersion)}</b>ruleset · ${esc(data.generated)}</div>
-  </div>
-</section>
-
-<section class="checker" id="check">
-  <h2>Is your camera affected?</h2>
-  <p class="ck-lede">Type a model. Everything is answered in your browser from the same
-  <a href="/rules.json">rules.json</a> below — nothing is sent anywhere, and this page never asks for
-  a camera, an address or a password.</p>
+<section class="band hero"><div class="wrap">
+  <div class="hero-grid">
+    <div>
+      <h1>AXIS OS 13 doesn't warn you. <em>It rolls back.</em></h1>
+      <p class="lede">Point it at your Axis cameras and it tells you which ones will survive the upgrade — before you start it. Read-only. No agent, nothing installed on the camera.</p>
+  <div class="checker" id="check">
+  <h2 class="ck-title">Is your camera affected?</h2>
+  <p class="ck-lede">Type a model. Answered in your browser from <a href="rules.json">rules.json</a> — nothing is sent anywhere, and this page never asks for a camera, an address or a password.</p>
   <div class="ck-row">
     <input id="ck-model" type="search" list="ck-models" autocomplete="off" spellcheck="false"
-           placeholder="Any Axis model &mdash; M3215-LVE, Q1656, M1137&hellip;" aria-label="Axis camera model">
+           placeholder="Camera model, e.g. Q1656 or M3215-LVE" aria-label="Axis camera model">
     <select id="ck-os" aria-label="Current AXIS OS version">
       <option value="">AXIS OS version…</option>
       <option value="12">AXIS OS 12.x</option>
@@ -381,30 +459,73 @@ footer a{color:var(--muted)}
   decides the architecture, and therefore the answer Axis's own 58-model list gets wrong for some cameras.
   Chipset data from <a href="https://camstreamer.com/download-app-all-supported-cameras">CamStreamer's
   supported-cameras list</a>.</p>
-</section>
+  </div>
+    </div>
+    <div>
+      <blockquote class="quote">
+        <p>“If a re-installation of an ACAP results in an error… AXIS OS will initiate a rollback.”</p>
+        <p>“Compatibility field with AXIS OS major versions now mandatory in manifest.”</p>
+        <cite>— Axis, upcoming breaking changes</cite>
+      </blockquote>
+      <p class="punch">Read those together. The upgrade does not warn you and then proceed — <strong>it fails and reverts the camera</strong>, because of one application somebody installed years ago. With four hundred cameras you find this out one camera at a time, at night, in a maintenance window, with nothing telling you which application did it.</p>
+    </div>
+  </div>
 
-<div class="filters"><div class="wrap">
-  <label>Tier</label>
-  ${TIER_ORDER.map((t) => `<button class="f" data-filter="tier" data-value="${t}" aria-pressed="false">${t === 'future' ? '2028' : t}</button>`).join('')}
-  <label>OS</label>
-  ${versions.map((v) => `<button class="f" data-filter="version" data-value="${esc(v)}" aria-pressed="false">${esc(v)}</button>`).join('')}
-  <input id="q" type="search" placeholder="Search parameter, CGI, model…" aria-label="Search rules">
-  <span id="count"></span>
-</div></div>
+  <div class="stats">
+    ${counts.map(([t, n]) => `<a class="stat s-${t}" href="#tier-${t}"><b>${n}</b>${t === 'future' ? '2028 items' : `Tier ${t} rules`}</a>`).join('')}
+    <a class="stat" href="#A5"><b>${data.rules.find((r) => r.id === 'A5').models32bit.length}</b>32-bit models</a>
+    <a class="stat" href="rules.json"><b>${esc(data.rulesetVersion)}</b>ruleset · ${esc(data.generated)}</a>
+  </div>
+</div></section>
 
-<div id="tiers">
+<section class="band band-rules" id="tiers"><div class="wrap">
+  <div class="band-head">
+    <span class="eyebrow">01 · The rules</span>
+    <h2>${data.rules.length} documented breaking changes, sorted by what they cost you</h2>
+    <p>Click a rule to open its impact, detection method and Axis source. Filter by tier or AXIS OS version, or search for a parameter, CGI or model.</p>
+  </div>
+  <div class="rules-grid">
+    <aside class="toc" aria-label="Rule tiers">
+      <h4>Tiers</h4>
+      ${counts.filter(([, n]) => n).map(([t, n]) => `<a href="#tier-${t}"><span class="dot dot-${t}"></span>${t === 'future' ? '2028 wave' : `Tier ${t}`}<span class="n">${n}</span></a>`).join('\n      ')}
+      <hr>
+      <a href="#scanner">Scanner</a>
+      <a href="#open">Open questions</a>
+      <a href="rules.json">rules.json</a>
+    </aside>
+    <div>
+      <div id="relbar" class="relbar hidden" role="status"></div>
+      <div class="filters">
+        <div class="fgroup"><label>Tier</label>
+        ${TIER_ORDER.map((t) => `<button class="f" data-filter="tier" data-value="${t}" aria-pressed="false">${t === 'future' ? '2028' : t}</button>`).join('')}</div>
+        <div class="fgroup"><label>OS</label>
+        ${versions.map((v) => `<button class="f" data-filter="version" data-value="${esc(v)}" aria-pressed="false">${esc(v)}</button>`).join('')}</div>
+        <div class="fsearch">
+          <input id="q" type="search" placeholder="Search parameter, CGI, model…" aria-label="Search rules">
+          <button id="expand" type="button" aria-pressed="false">Expand all</button>
+          <span id="count"></span>
+        </div>
+      </div>
 ${bySection}
-</div>
+    </div>
+  </div>
+</div></section>
 
-<section class="scanner" id="scanner">
-  <h2>Install it on one camera. It checks the whole network.</h2>
+<section class="band band-scan" id="scanner"><div class="wrap">
+  <div class="band-head">
+    <span class="eyebrow" style="color:#fdba74">02 · The scanner</span>
+    <h2>Install it on one camera. It checks the whole network.</h2>
+  </div>
+  <div class="scan-grid">
+  <div class="scan-body">
   <p>An ACAP you add through the camera's own Apps page — no laptop, no terminal, nothing to set up.
   It finds every camera on that network and answers one question per device: <em>will upgrade</em>,
   <em>will roll back</em>, or <em>cannot be determined</em>. For the ones that roll back, it names the
   applications responsible.</p>
-  <p class="avail"><strong>Not out yet.</strong> That ACAP is being built — the timeline below is honest
-  about where it stands. What runs today is the command-line scanner, which performs the same checks
-  against a fleet you point it at.</p>
+  <div class="avail"><p><strong>Ready — available on request as a beta.</strong> The ACAP is finished and
+  being handed out to a small number of installations first. Ask for it and you get the signed package to
+  install on one of your cameras. The command-line scanner performs the same checks today, without asking.</p>
+  <a class="ck-go" href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request the beta ACAP →</a></div>
   <p>Read-only against every camera it touches: it reads the installed-application list and a handful of
   parameters, the same calls any Axis management tool makes. Nothing is written, nothing is installed on
   the cameras being checked, and no credentials leave your network. The app publishes the complete list
@@ -413,36 +534,42 @@ ${bySection}
   per-application fields two of these rules depend on. Those cameras report unknown rather than a
   clean bill of health, because a false all-clear is the one answer that would make the tool worse
   than not running it.</p>
+  </div>
   <div class="ship">
     <div><span class="mono tagn">now</span><p>${data.rules.filter((r) => r.detection.status === 'verified').length} of the ${data.rules.length} rules are bench-verified and checked automatically. Command-line, macOS and Linux.</p></div>
+    <div><span class="mono tagn">beta · on request</span><p>The signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network. <a href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request access</a>.</p></div>
     <div><span class="mono tagn">next</span><p>Signed downloads for macOS and Windows — nothing to install, no runtime to set up.</p></div>
-    <div><span class="mono tagn">then</span><p>A signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network.</p></div>
+  </div>
   </div>
   <p class="note"><strong>The free scan tells you which cameras roll back.</strong> That answer is never
   behind a paywall — the point of this is that fleets get checked, not that a scanner gets sold. A licence
   names the applications on each camera, says what to do about each, and produces the report you can hand
   to whoever owns the cameras. The command-line scanner is open and free either way, if you would rather
   run it yourself.</p>
-</section>
+</div></section>
 
-<section class="open" id="open">
-  <h2>Open questions</h2>
-  <p>Things this ruleset does not yet know. Listed because a rules page that hides its own gaps is worth less than one that names them.</p>
-  <ol>
+<section class="band band-open" id="open"><div class="wrap">
+  <div class="band-head">
+    <span class="eyebrow">03 · Known gaps</span>
+    <h2>Open questions</h2>
+    <p>Things this ruleset does not yet know. Listed because a rules page that hides its own gaps is worth less than one that names them.</p>
+  </div>
+  <ol class="open">
     ${data.openQuestions
       .map(
-        (q) => `<li><strong>${esc(q.id)}.</strong> ${esc(q.question)}
+        (q) => `<li><strong>${esc(q.id)}</strong> ${esc(q.question)}
       <span class="why">${esc(q.why)} Blocks ${q.blocks.map((b) => `<a href="#${esc(b)}">${esc(b)}</a>`).join(', ')}.</span></li>`
       )
       .join('\n    ')}
   </ol>
-</section>
+</div></section>
 
 </main>
 
 <footer><div class="wrap">
   <p>Every rule on this page cites public Axis documentation. Nothing here comes from a support ticket or a named installation.</p>
-  <p>Ruleset ${esc(data.rulesetVersion)}, generated ${esc(data.generated)} from <a href="/rules.json"><code>rules.json</code></a> — the same file the scanner reads. Take it, cite it, argue with it. ${esc(data.owner)}.</p>
+  <p>Ruleset ${esc(data.rulesetVersion)}, generated ${esc(data.generated)} from <a href="rules.json"><code>rules.json</code></a> — the same file the scanner reads. Take it, cite it, argue with it. ${esc(data.owner)}.</p>
+  <p class="disclaimer">Preflight is a personal project by Pavel Kotyza, <a href="https://4xs.dev">4xs.dev</a>. It is not affiliated with, endorsed by or sponsored by Axis Communications AB or CamStreamer. AXIS and AXIS OS are trademarks of Axis Communications AB.</p>
 
 </div></footer>
 
@@ -460,18 +587,23 @@ ${bySection}
   var rules=[].slice.call(document.querySelectorAll('.rule'));
   var q=document.getElementById('q'), count=document.getElementById('count');
   var active={tier:new Set(), version:new Set()};
+  var REL=null, relOff=false;  // ids that apply to the model/OS in the checker
 
   function apply(){
     var term=q.value.trim().toLowerCase(), shown=0;
     rules.forEach(function(el){
       var ok = (!active.tier.size    || active.tier.has(el.dataset.tier))
             && (!active.version.size || active.version.has(el.dataset.version))
-            && (!term || el.textContent.toLowerCase().indexOf(term) > -1);
+            && (!term || el.textContent.toLowerCase().indexOf(term) > -1)
+            && (!REL || relOff || REL.has(el.id));
       el.classList.toggle('hidden', !ok);
       if(ok) shown++;
     });
     document.querySelectorAll('.tier').forEach(function(sec){
-      sec.classList.toggle('hidden', !sec.querySelector('.rule:not(.hidden)'));
+      var n=sec.querySelectorAll('.rule:not(.hidden)').length;
+      sec.classList.toggle('hidden', !n);
+      sec.querySelector('.tiercount').textContent=n;
+      var t=document.querySelector('.toc a[href="#'+sec.id+'"] .n'); if(t) t.textContent=n;
     });
     count.textContent = shown === rules.length ? rules.length+' rules' : shown+' of '+rules.length;
   }
@@ -493,11 +625,15 @@ ${bySection}
 
   function check(){
     var q=(mi.value||'').trim(), v=os.value, html='';
-    if(!q && !v){ out.innerHTML=''; return; }
+    // What the checker learns narrows the rule list: hide[id] = why it does not apply.
+    var hide={}, only=null, recognised=false, label=q;
+    function done(h){ out.innerHTML=h||''; if(!h){ REL=null; showRel(); apply(); } }
+    if(!q && !v){ return done(''); }
 
     if(q){
       var n=norm(q);
-      if(n.length<3){ out.innerHTML=''; return; }
+      if(n.length<3 && !v){ return done(''); }
+      if(n.length>=3){
 
       // Chipset first: it decides the ACAP architecture, so it answers A5 for the
       // whole catalogue rather than only the models Axis chose to name.
@@ -513,6 +649,7 @@ ${bySection}
       var hit32=MODELS32.filter(match);
       var hitNV=NONVIDEO.filter(match);
 
+      if(chipModel) label=chipModel;
       var listed = hit32.length ? ' Axis also names it directly: '+hit32.join(', ')+'.' : '';
 
       // The question people actually have is not "is this 32-bit" but "does this
@@ -525,12 +662,15 @@ ${bySection}
       var OLD_32 = { 'ARTPEC-6/7':1, 'ARTPEC-5':1, 'ARTPEC-4':1, 'ARTPEC-3':1,
                      'Ambarella S3L':1, 'Ambarella S2L':1, 'Ambarella S2E':1, 'Ambarella A5S':1 };
 
+      recognised = !!chip || onList;
       if(chip && SIXTY_FOUR[chip]){
+        hide.A5='64-bit, no rebuild'; hide.A9='gets AXIS OS 13';
         html+=card('ok','Gets AXIS OS 13 — and no rebuild needed',
           chipModel+' is '+chip+', which is 64-bit (aarch64). It is on the AXIS OS 13 track, and the '+
           'Y2038 change to 64-bit time_t does not force an ACAP rebuild here. What matters for this camera '+
           'is its installed applications, not its hardware.','A5');
       } else if(onList){
+        hide.A9='on the AXIS OS 13 list';
         html+=card('bad','Gets AXIS OS 13 — every ACAP must be rebuilt first',
           'Axis names '+hit32.join(', ')+' among the 32-bit products that will receive AXIS OS 13. That '+
           'means the Y2038 ABI break is real for this camera: every ACAP on it must be rebuilt against '+
@@ -544,6 +684,7 @@ ${bySection}
         // firmware, and without it this hedges rather than guessing.
         var maj0 = v ? parseInt(v,10) : null;
         if(maj0 !== null && maj0 <= 10){
+          only=['A9'];
           html+=card('nopath','No AXIS OS 13 for this camera',
             chipModel+' is '+chip+' and 32-bit, Axis does not name it among the 32-bit products that will '+
             'receive AXIS OS 13, and on AXIS OS '+v+' it was never offered AXIS OS 11 either — a closed '+
@@ -551,6 +692,7 @@ ${bySection}
             'no application change makes AXIS OS 13 available on this hardware. Confirm with Axis before you '+
             'budget for replacements.','A9');
         } else if(maj0 !== null){
+          hide.A5='not on the 32-bit AXIS OS 13 list';
           html+=card('warn','Not on the AXIS OS 13 list — ask Axis for this model',
             chipModel+' is '+chip+' and 32-bit, and Axis does not name it among the 32-bit products that will '+
             'receive AXIS OS 13. But it is on the active AXIS OS track, and that list omits several ARTPEC-7 '+
@@ -578,6 +720,7 @@ ${bySection}
       if(hitNV.length){
         html+=card('warn','Non-video product — StreamCache.Size is removed',
           'root.StreamCache.Size no longer exists on '+hitNV.join(', ')+'. Configuration tooling that sets it will error.','C7');
+      } else if(recognised){ hide.C7='non-video products only'; }
       }
     }
 
@@ -597,12 +740,29 @@ ${bySection}
           'AXIS OS '+v+' publishes CompatibleOsVersions and SignatureStatus per application, so a read-only '+
           'scan can answer whether this camera rolls back.','A1');
       }
-      var applies=RULES.filter(function(r){ return r.tier!=='future' && parseFloat(r.version)>maj; }).length;
-      if(applies>0){
-        html+=card('', applies + ' documented changes land between AXIS OS '+v+' and 13',
-          'Filter the list below by version to read them.','');
-      }
     }
+    // One list, not two: the rules below are filtered to what this camera faces.
+    var majV = v ? parseInt(v,10) : null;
+    var rel = RULES.filter(function(r){
+      if(only) return only.indexOf(r.id)>-1;
+      if(hide[r.id]) return false;
+      if(majV===null) return true;
+      return majV>=13 ? r.tier==='future' : (r.tier!=='future' && parseFloat(r.version)>majV);
+    });
+    REL=new Set(rel.map(function(r){ return r.id; })); relOff=false;
+    var who=(label && norm(label).length>=3 ? '<b>'+esc1(label)+'</b>' : 'this camera')+(v ? ' on <b>AXIS OS '+(v==='10'?'10 or older':v==='13'?'13':v+'.x')+'</b>' : '');
+    var tc={A:0,B:0,C:0,future:0}; rel.forEach(function(r){ tc[r.tier]++; });
+    var chips=['A','B','C','future'].filter(function(t){ return tc[t]; }).map(function(t){
+      return '<span class="tierbadge tb-'+t+'">'+tc[t]+' × '+(t==='future'?'2028':'Tier '+t)+'</span>'; }).join('');
+    var skipped=Object.keys(hide).map(function(id){ return id+' ('+hide[id]+')'; });
+    if(only) skipped=['every other rule (no AXIS OS 13 for this camera)'];
+    html+='<div class="ck-sum"><h4>'+rel.length+' of '+RULES.length+' rules apply to '+who+'</h4>'+
+      '<div class="tiers">'+chips+'</div>'+
+      (skipped.length?'<p>Left out: '+skipped.join(', ')+'.</p>':'')+
+      (!v?'<p>Pick the current AXIS OS to narrow it to the changes still ahead of this camera.</p>':'')+
+      '<a class="ck-go" href="#tiers">See the '+rel.length+' rules &darr;</a></div>';
+    relbarHTML='Filtered: <b>'+rel.length+'</b> of '+RULES.length+' rules apply to '+who+'.';
+    showRel(); apply();
     // Every result ends with the route to a real answer. Without this the checker
     // stops on a caveat and the visitor has nowhere to go — and the caveat is the
     // point: a model number cannot know what is installed on the camera.
@@ -611,10 +771,20 @@ ${bySection}
         '<p>What decides whether a camera rolls back is which applications are installed on it, and no '+
         'model list knows that. Preflight scans a fleet and answers it per camera &mdash; the applications '+
         'on each, which ones fail re-installation, which cameras revert. It runs from the command line '+
-        'today; an ACAP you install on a single camera to check the whole network is in progress.</p>'+
+        'today, and as a beta ACAP &mdash; available on request &mdash; that you install on a single camera to '+
+        'check the whole network.</p>'+
         '<a class="ck-go" href="#scanner">How the scanner works &rarr;</a></div>';
     }
     out.innerHTML=html;
+  }
+  var relbar=document.getElementById('relbar'), relbarHTML='';
+  function esc1(t){ return String(t).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function showRel(){
+    if(!REL){ relbar.classList.add('hidden'); return; }
+    relbar.classList.remove('hidden');
+    relbar.innerHTML='<span>'+(relOff?'Showing all '+RULES.length+' rules.':relbarHTML)+'</span><button type="button" id="relbtn">'+
+      (relOff?'Only the ones that apply':'Show all '+RULES.length)+'</button>';
+    document.getElementById('relbtn').onclick=function(){ relOff=!relOff; showRel(); apply(); };
   }
   mi.addEventListener('input',check); os.addEventListener('change',check); check();
 
@@ -626,8 +796,28 @@ ${bySection}
       apply();
     });
   });
-  q.addEventListener('input', apply);
+  q.addEventListener('input', function(){
+    apply();
+    // A match may sit in the collapsed evidence, so show it.
+    if(q.value.trim()) rules.forEach(function(el){ if(!el.classList.contains('hidden')) el.open=true; });
+  });
   apply();
+
+  var exp=document.getElementById('expand');
+  exp.addEventListener('click',function(){
+    var on=exp.getAttribute('aria-pressed')!=='true';
+    rules.forEach(function(el){ el.open=on; });
+    exp.setAttribute('aria-pressed',String(on));
+    exp.textContent=on?'Collapse all':'Expand all';
+  });
+
+  // Links like #A5 (checker, "see also", open questions) land on a collapsed rule: open it.
+  function openHash(){
+    var id=decodeURIComponent(location.hash.slice(1)); if(!id) return;
+    var el=document.getElementById(id);
+    if(el && el.classList.contains('rule')){ el.classList.remove('hidden'); el.open=true; el.scrollIntoView(); }
+  }
+  addEventListener('hashchange',openHash); openHash();
 })();
 </script>
 </body>
@@ -724,7 +914,7 @@ write(
   '404.html',
   `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Not found — Preflight</title>
+<title>Not found — Preflight for OS 13</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{color-scheme:light dark}
