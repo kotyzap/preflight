@@ -251,6 +251,29 @@ code{background:var(--code-bg);padding:.1em .35em;border-radius:4px;
 .acap-card em{color:var(--deep-ink)}
 .acap-actions{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
 .acap-card a.ck-go{color:#fff}
+.beta-dlg{border:1px solid var(--line);border-radius:14px;padding:0;width:min(560px,calc(100vw - 32px));
+  background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}
+.beta-dlg::backdrop{background:rgba(15,16,19,.55)}
+.beta-dlg form{padding:24px 26px;display:grid;gap:12px}
+.beta-dlg h3{margin:0;font-size:20px;letter-spacing:-.01em}
+.beta-sub{margin:0 0 4px;color:var(--muted);font-size:14px}
+.beta-dlg label{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--ink)}
+.beta-dlg input,.beta-dlg select,.beta-dlg textarea{font:15px/1.4 inherit;font-family:inherit;color:var(--ink);background:var(--band);
+  border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-weight:400}
+.beta-dlg textarea{resize:vertical}
+.beta-dlg input:focus,.beta-dlg select:focus,.beta-dlg textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+.beta-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.req{color:var(--a)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.beta-status{margin:0;font-size:14px}
+.beta-status:empty{display:none}
+.beta-status.err{color:var(--a)}
+.beta-actions{display:flex;justify-content:flex-end;gap:10px;align-items:center}
+.beta-dlg button.ck-go{border:0;cursor:pointer;font-family:inherit}
+.beta-dlg button.ck-go[disabled]{opacity:.6;cursor:wait}
+.beta-cancel{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:9px 14px;font:14px inherit;font-family:inherit;cursor:pointer}
+.beta-done{text-align:center;padding:12px 0}
+@media (max-width:520px){.beta-2{grid-template-columns:1fr}.beta-dlg form{padding:20px 18px}}
 .acap-more{color:#fdba74;font-size:14px;text-decoration:none}
 .acap-more:hover{text-decoration:underline}
 .stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:44px 0 0}
@@ -482,7 +505,7 @@ footer a{color:var(--muted)}
         <span class="acap-tag">Preflight ACAP · beta on request</span>
         <h3>Install it on one camera. It checks the whole network.</h3>
         <p>Add it through the camera's own Apps page. It finds every camera on that network and answers per device: <em>will upgrade</em>, <em>will roll back</em>, or <em>cannot be determined</em> — and names the applications responsible.</p>
-        <div class="acap-actions"><a class="ck-go" href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request the beta ACAP →</a><a class="acap-more" href="#scanner">How it works ↓</a></div>
+        <div class="acap-actions"><a class="ck-go" href="#beta" data-beta>Request the beta ACAP →</a><a class="acap-more" href="#scanner">How it works ↓</a></div>
       </div>    </div>
   </div>
 
@@ -541,7 +564,7 @@ ${bySection}
   <div class="avail"><p><strong>Ready — available on request as a beta.</strong> The ACAP is finished and
   being handed out to a small number of installations first. Ask for it and you get the signed package to
   install on one of your cameras. The command-line scanner performs the same checks today, without asking.</p>
-  <a class="ck-go" href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request the beta ACAP →</a></div>
+  <a class="ck-go" href="#beta" data-beta>Request the beta ACAP →</a></div>
   <p>Read-only against every camera it touches: it reads the installed-application list and a handful of
   parameters, the same calls any Axis management tool makes. Nothing is written, nothing is installed on
   the cameras being checked, and no credentials leave your network. The app publishes the complete list
@@ -553,7 +576,7 @@ ${bySection}
   </div>
   <div class="ship">
     <div><span class="mono tagn">now</span><p>${data.rules.filter((r) => r.detection.status === 'verified').length} of the ${data.rules.length} rules are bench-verified and checked automatically. Command-line, macOS and Linux.</p></div>
-    <div><span class="mono tagn">beta · on request</span><p>The signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network. <a href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request access</a>.</p></div>
+    <div><span class="mono tagn">beta · on request</span><p>The signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network. <a href="#beta" data-beta>Request access</a>.</p></div>
     <div><span class="mono tagn">next</span><p>Signed downloads for macOS and Windows — nothing to install, no runtime to set up.</p></div>
   </div>
   </div>
@@ -581,6 +604,29 @@ ${bySection}
 </div></section>
 
 </main>
+
+<dialog id="beta" class="beta-dlg" aria-labelledby="beta-h">
+<form id="beta-form" method="post" action="/api/beta">
+  <h3 id="beta-h">Request the Preflight ACAP beta</h3>
+  <p class="beta-sub">The signed package comes to you by email. What you enter here is used only to reply.</p>
+  <label><span>Email <span class="req">*</span></span><input name="email" type="email" required maxlength="200" autocomplete="email"></label>
+  <div class="beta-2">
+    <label>Name<input name="name" maxlength="120" autocomplete="name"></label>
+    <label>Company<input name="company" maxlength="160" autocomplete="organization"></label>
+  </div>
+  <div class="beta-2">
+    <label>Number of cameras<select name="cameras"><option value="">—</option><option>1–10</option><option>11–100</option><option>101–1000</option><option>1000+</option></select></label>
+    <label>Camera models<input name="models" maxlength="400" placeholder="e.g. Q1656, M1137"></label>
+  </div>
+  <label><span>Why do you need access? <span class="req">*</span></span><textarea name="reason" required minlength="10" maxlength="2000" rows="4" placeholder="Your fleet, your upgrade plans, what you want to check…"></textarea></label>
+  <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+  <p id="beta-status" class="beta-status" role="status"></p>
+  <div class="beta-actions">
+    <button type="button" class="beta-cancel" data-close>Cancel</button>
+    <button type="submit" class="ck-go">Send request</button>
+  </div>
+</form>
+</dialog>
 
 <footer><div class="wrap">
   <p>Every rule on this page cites public Axis documentation. Nothing here comes from a support ticket or a named installation.</p>
@@ -804,6 +850,31 @@ ${bySection}
   }
   mi.addEventListener('input',check); os.addEventListener('change',check); check();
 
+  // ---- beta request form ---------------------------------------------------
+  var dlg=document.getElementById('beta'), bform=document.getElementById('beta-form'), bstat=document.getElementById('beta-status');
+  document.querySelectorAll('[data-beta]').forEach(function(a){
+    a.addEventListener('click',function(e){ e.preventDefault(); dlg.showModal(); bform.email.focus(); });
+  });
+  dlg.querySelector('[data-close]').addEventListener('click',function(){ dlg.close(); });
+  dlg.addEventListener('click',function(e){ if(e.target===dlg) dlg.close(); });
+  bform.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=bform.querySelector('button[type=submit]');
+    btn.disabled=true; bstat.className='beta-status'; bstat.textContent='Sending…';
+    fetch(bform.action,{method:'POST',body:new FormData(bform),headers:{Accept:'application/json'}})
+      .then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+      .then(function(d){
+        if(!d.ok) throw new Error(d.error||'');
+        bform.innerHTML='<div class="beta-done"><h3>Request sent</h3><p class="beta-sub">Thanks. You will get a reply by email.</p>'+
+          '<button type="button" class="ck-go" id="beta-ok">Close</button></div>';
+        document.getElementById('beta-ok').onclick=function(){ dlg.close(); };
+      })
+      .catch(function(err){
+        btn.disabled=false; bstat.className='beta-status err';
+        bstat.textContent=err.message||'Could not send the request. Please try again later.';
+      });
+  });
+
   document.querySelectorAll('button.f').forEach(function(b){
     b.addEventListener('click',function(){
       var set=active[b.dataset.filter], on=b.getAttribute('aria-pressed')==='true';
@@ -892,7 +963,7 @@ write(
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; connect-src 'self'; frame-ancestors 'self'
   Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 /rules.json

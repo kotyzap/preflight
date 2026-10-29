@@ -44,6 +44,36 @@ node build.mjs
 npx wrangler pages deploy dist --project-name=preflight
 ```
 
+## Beta form (`functions/api/beta.js`)
+
+The "Request the beta ACAP" buttons open a form that POSTs to `/api/beta`, a Pages
+Function. It emails the request to you through the Cloudflare Email Sending REST
+API (no third party, nothing stored). `functions/` sits next to `dist/`, not in it;
+both a Git-connected build and `npx wrangler pages deploy dist` (run from the repo
+root) pick it up.
+
+One-time setup:
+
+1. **Email → Email Sending**: onboard `4xs.dev` (adds the DNS records).
+2. **Email → Email Routing → Destination addresses**: add and verify `kotyza@gmail.com`
+   (sending to a verified destination is free).
+3. **My Profile → API Tokens**: create a token with **Email Sending: Edit** on the account.
+4. **Workers & Pages → preflight → Settings → Variables and secrets** (Production):
+
+   | Name | Type | Value |
+   |---|---|---|
+   | `CF_ACCOUNT_ID` | text | your account ID |
+   | `CF_EMAIL_TOKEN` | **secret** | the token from step 3 |
+   | `BETA_FROM` | text | `preflight@4xs.dev` |
+   | `BETA_TO` | text | `kotyza@gmail.com` |
+
+5. Redeploy (variables apply to new deployments only).
+
+Test: submit the form on the live site. On failure the form says so and the
+function logs `beta: send failed <status> <body>` (Pages → Deployments → Functions
+→ Real-time logs). Spam protection is a honeypot field only; add Turnstile if it
+gets abused.
+
 ## Custom domain
 
 Add `preflight.4xs.dev` in **Pages → Custom domains**. Cloudflare issues the
@@ -69,8 +99,11 @@ you.
 
 ```
 default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline';
-script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'
+script-src 'unsafe-inline'; base-uri 'none'; form-action 'self';
+connect-src 'self'
 ```
+
+`form-action` / `connect-src 'self'` exist only for the beta form's POST to `/api/beta`.
 
 The page loads nothing external, so anything that tries to is either a bug or a
 compromise and should fail loudly. `'unsafe-inline'` is required because the CSS
