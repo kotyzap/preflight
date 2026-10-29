@@ -240,8 +240,19 @@ code{background:var(--code-bg);padding:.1em .35em;border-radius:4px;
 .quote p{margin:0 0 10px;font-size:16px}
 .quote p:last-child{margin:0}
 .quote cite{font-style:normal;font-size:13px;color:var(--muted)}
-.punch{font-size:16px;margin:0;color:var(--ink)}
-.punch strong{color:var(--a)}
+.punch{font-size:17px;margin:0 0 16px}
+.band-scan .scan-body p.punch{color:var(--deep-ink)}
+.punch strong{color:#f87171}
+.acap-card{background:var(--deep);color:var(--deep-ink);border-radius:12px;padding:22px 24px;box-shadow:var(--shadow-lg)}
+.acap-tag{display:inline-block;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;
+  color:#fdba74;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.10);border-radius:999px;padding:6px 10px;margin-bottom:12px}
+.acap-card h3{font-size:20px;line-height:1.25;letter-spacing:-.01em;margin:0 0 8px;color:#fff}
+.acap-card p{font-size:14px;color:var(--deep-muted);margin:0 0 16px}
+.acap-card em{color:var(--deep-ink)}
+.acap-actions{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.acap-card a.ck-go{color:#fff}
+.acap-more{color:#fdba74;font-size:14px;text-decoration:none}
+.acap-more:hover{text-decoration:underline}
 .stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:44px 0 0}
 .stat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--line);border-radius:10px;
   padding:14px 16px;font-size:13px;color:var(--muted);text-decoration:none;box-shadow:var(--shadow)}
@@ -444,7 +455,7 @@ footer a{color:var(--muted)}
   <p class="ck-lede">Type a model. Answered in your browser from <a href="rules.json">rules.json</a> — nothing is sent anywhere, and this page never asks for a camera, an address or a password.</p>
   <div class="ck-row">
     <input id="ck-model" type="search" list="ck-models" autocomplete="off" spellcheck="false"
-           placeholder="Camera model, e.g. Q1656 or M3215-LVE" aria-label="Axis camera model">
+           placeholder="Camera model, e.g. Q1656" aria-label="Axis camera model">
     <select id="ck-os" aria-label="Current AXIS OS version">
       <option value="">AXIS OS version…</option>
       <option value="12">AXIS OS 12.x</option>
@@ -467,8 +478,12 @@ footer a{color:var(--muted)}
         <p>“Compatibility field with AXIS OS major versions now mandatory in manifest.”</p>
         <cite>— Axis, upcoming breaking changes</cite>
       </blockquote>
-      <p class="punch">Read those together. The upgrade does not warn you and then proceed — <strong>it fails and reverts the camera</strong>, because of one application somebody installed years ago. With four hundred cameras you find this out one camera at a time, at night, in a maintenance window, with nothing telling you which application did it.</p>
-    </div>
+      <div class="acap-card">
+        <span class="acap-tag">Preflight ACAP · beta on request</span>
+        <h3>Install it on one camera. It checks the whole network.</h3>
+        <p>Add it through the camera's own Apps page. It finds every camera on that network and answers per device: <em>will upgrade</em>, <em>will roll back</em>, or <em>cannot be determined</em> — and names the applications responsible.</p>
+        <div class="acap-actions"><a class="ck-go" href="mailto:kotyza@gmail.com?subject=Preflight%20ACAP%20beta%20request">Request the beta ACAP →</a><a class="acap-more" href="#scanner">How it works ↓</a></div>
+      </div>    </div>
   </div>
 
   <div class="stats">
@@ -518,6 +533,7 @@ ${bySection}
   </div>
   <div class="scan-grid">
   <div class="scan-body">
+<p class="punch">The upgrade does not warn you and then proceed — <strong>it fails and reverts the camera</strong>, because of one application somebody installed years ago. With four hundred cameras you find this out one camera at a time, at night, in a maintenance window, with nothing telling you which application did it.</p>
   <p>An ACAP you add through the camera's own Apps page — no laptop, no terminal, nothing to set up.
   It finds every camera on that network and answers one question per device: <em>will upgrade</em>,
   <em>will roll back</em>, or <em>cannot be determined</em>. For the ones that roll back, it names the
