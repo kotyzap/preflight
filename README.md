@@ -31,7 +31,7 @@ Read-only. No agent, nothing installed on the camera.
 |:-:|---|---|---|
 | 📋 | Ruleset + public page | this repo · [preflight.4xs.dev](https://preflight.4xs.dev) | ✅ live |
 | ⌨️ | CLI scanner | [axis-cli](https://github.com/kotyzap/axis-cli) · `axis preflight` | ✅ free, open |
-| 📦 | ACAP — install on one camera, checks the network | `acap/` | 🧪 beta, on request |
+| 📦 | ACAP — install on one camera, checks the network | private repo | 🧪 beta, on request |
 
 ## 🗂️ Layout
 
@@ -130,8 +130,8 @@ Carried in `rules.json` under `openQuestions` and rendered on the page.
 ## 🧭 Next
 
 Step 1, the CLI, is done and lives in [axis-cli](https://github.com/kotyzap/axis-cli) as
-`axis preflight`. Step 2, the ACAP in `acap/`, is ready and available on request as a beta;
-see `acap/README.md`.
+`axis preflight`. Step 2, the ACAP, is ready and available on request as a beta. Its source is not public —
+[request it on preflight.4xs.dev](https://preflight.4xs.dev/#scanner).
 
 ## ⚖️ Licence
 

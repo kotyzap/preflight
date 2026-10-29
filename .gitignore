@@ -54,3 +54,8 @@ deck.mjs
 
 # Wrangler local cache (pages deploy)
 .wrangler/
+
+# The ACAP is the paid product and lives in its own private repo
+# (github.com/kotyzap/preflight-acap), checked out here so acap/sync.mjs can still
+# read ../rules.json. Never commit it to this public repo.
+acap/
