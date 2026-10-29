@@ -1,12 +1,16 @@
 {
   "$schema": "./rules.schema.json",
-  "rulesetVersion": "3.1.1",
+  "rulesetVersion": "3.2.0",
   "generated": "2026-10-29",
   "owner": "Pavel Kotyza · 4XS.dev",
   "sources": {
     "axis-os": {
       "title": "AXIS OS — Changes in AXIS OS 13",
       "url": "https://help.axis.com/en-us/axis-os#changes-in-axis-os-13"
+    },
+    "axis-os-rn": {
+      "title": "AXIS OS — Release notes",
+      "url": "https://help.axis.com/en-us/axis-os-release-notes"
     }
   },
   "tiers": {
@@ -74,7 +78,7 @@
       "tier": "A",
       "version": "13.0",
       "title": "ACAP manifest schema v2 enforced; package.conf removed",
-      "summary": "Applications must use manifest schema v2 to declare their access rights. package.conf is no longer supported — those applications are handled by an older ACAP framework that is gone. Applications are restricted to running as their own dynamically created user or as the sdk user.",
+      "summary": "Applications must use manifest schema v2 to declare their access rights. package.conf is no longer supported — those applications are handled by an older ACAP framework that is gone. Applications are restricted to running as their own dynamically created user or as the sdk user. Access is limited to a predefined set of system groups and to the D-Bus methods the official ACAP APIs require.",
       "impact": "A pre-schema-v2 or package.conf application will not re-install, which triggers A2.",
       "detection": {
         "method": "acap-manifest",
@@ -103,7 +107,7 @@
       ],
       "source": "axis-os",
       "benchNote": "Confirmed on Q1656/12.11.77: SignatureStatus present on every application. Vendor apps report Signed; four locally built apps report Unknown. Absent on M1137/10.12.300.",
-      "note": "Axis recommends going through an AXIS OS 12 LTS release (version still to be announced), reinstalling existing applications and redoing their configuration there, then upgrading to AXIS OS 13."
+      "note": "Axis recommends going through an AXIS OS 12 LTS release (version still to be announced), reinstalling existing applications and redoing their configuration there, then upgrading to AXIS OS 13. For development only, unsigned applications run through Axis's Developer Mode application; turning Developer Mode off uninstalls every unsigned application and its SSH user. Signed applications are still required in production. Source: the AXIS OS 13.0 release notes."
     },
     {
       "id": "A5",
@@ -451,6 +455,22 @@
       "source": "axis-os"
     },
     {
+      "id": "B14",
+      "tier": "B",
+      "version": "13.0",
+      "title": "Computer Vision SDK and host container support removed",
+      "summary": "The Computer Vision SDK is no longer supported. ACAP applications can no longer request support from the host system for running containers.",
+      "impact": "Applications built on the Computer Vision SDK, or that rely on the host to run their workload in containers, stop working.",
+      "detection": {
+        "method": "acap-manifest",
+        "sketch": "Look for a manifest or package that requests host container support or depends on the Computer Vision SDK. Approach not settled; may need the .eap.",
+        "feasibility": "medium",
+        "status": "open"
+      },
+      "note": "Listed in the AXIS OS 13.0 release notes, not on the Changes in AXIS OS 13 page. Axis does not say whether an affected application fails to re-install (which would make it Tier A) or installs and fails at runtime.",
+      "source": "axis-os-rn"
+    },
+    {
       "id": "C24",
       "tier": "C",
       "version": "13.0",
@@ -564,7 +584,7 @@
       "tier": "C",
       "version": "13.0",
       "title": "Recording system rewritten",
-      "summary": "Recording IDs are capped at 24 hours with a 1 hour default and a continuous sequence now spans multiple IDs. record/list.cgi returns more IDs. exportrecording.cgi is extended for trailing IDs. H.264 header timestamps are not implemented in the new system. Ongoing recordings cannot be removed directly — they must be stopped first. Recording files moved to a new on-disk location with a new naming scheme. RTSP failoverrecordinglength is ignored, and RTSP GET_PARAMETER Failover-Recording-ID now returns 451. EstimatedFileSize is removed from the export API.",
+      "summary": "Recording IDs are capped at 24 hours with a 1 hour default and a continuous sequence now spans multiple IDs. record/list.cgi returns more IDs. exportrecording.cgi is extended for trailing IDs. H.264 header timestamps are not implemented in the new system. Ongoing recordings cannot be removed directly — they must be stopped first. Recording files moved to a new on-disk location with a new naming scheme. RTSP failoverrecordinglength is ignored, and RTSP GET_PARAMETER Failover-Recording-ID now returns 451. EstimatedFileSize is removed from the export API. Object Store Recording (OSR) is now the default for recordings. The Content-Base header in the RTSP DESCRIBE response for Edge recordings changed from the .../record/play.amp path to .../media.amp.",
       "impact": "The largest single item on the page for anyone with a recording integration. Several independent ways to break at once.",
       "detection": {
         "method": "client-side",
@@ -576,7 +596,8 @@
         "axis-cgi/record/list.cgi",
         "axis-cgi/record/export/exportrecording.cgi"
       ],
-      "source": "axis-os"
+      "source": "axis-os",
+      "note": "The Content-Base change also shipped in AXIS OS 12.11.147, so LTS 2026 fleets meet it before OS 13. The OSR default and the Content-Base change are listed in the release notes, not on the Changes in AXIS OS 13 page."
     },
     {
       "id": "C6",

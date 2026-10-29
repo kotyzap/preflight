@@ -36,7 +36,7 @@ Read-only. No agent, nothing installed on the camera.
 ## 🗂️ Layout
 
 ```
-rules.json     the single source of truth — 67 rules, every one citing public Axis docs
+rules.json     the single source of truth — 68 rules, every one citing public Axis docs
 build.mjs      zero-dependency generator + validator: rules.json → dist/ (the public site)
 deck.mjs       pitch deck → build/deck.html. NOT in dist/ — that directory is published.
 probe-q1.sh    read-only bench probe used to verify detections against real cameras
@@ -87,10 +87,10 @@ Detection status: 🟢 `verified` · 🔵 `designed` · 🟡 `open`.
 | | Tier | What it does | Rules |
 |:-:|---|---|--:|
 | 🔴 | **A** | Blocks the upgrade or rolls it back | **9** |
-| 🟠 | **B** | Upgrade succeeds, the app breaks | **13** |
+| 🟠 | **B** | Upgrade succeeds, the app breaks | **14** |
 | 🔵 | **C** | Camera is fine, your integration breaks (incl. 14 already in force) | **41** |
 | ⚫ | **2028** | AXIS OS 14, September 2028 | **4** |
-| | | **Total** · 9 bench-verified | **67** |
+| | | **Total** · 9 bench-verified | **68** |
 | 🧩 | **A5** | 32-bit models under the Y2038 ABI break | **59** |
 <!-- coverage:end -->
 
