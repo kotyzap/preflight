@@ -505,10 +505,10 @@ footer a{color:var(--muted)}
         <cite>— Axis, upcoming breaking changes</cite>
       </blockquote>
       <div class="acap-card">
-        <span class="acap-tag">Preflight ACAP · beta on request</span>
+        <span class="acap-tag">Preflight ACAP · v1.4.9, signed</span>
         <h3>Install it on one camera. It checks the whole network.</h3>
         <p>Add it through the camera's own Apps page. It finds every camera on that network and answers per device: <em>will upgrade</em>, <em>will roll back</em>, or <em>cannot be determined</em> — and names the applications responsible.</p>
-        <div class="acap-actions"><a class="ck-go" href="#beta" data-beta>Request the beta ACAP →</a><a class="acap-more" href="#scanner">How it works ↓</a></div>
+        <div class="acap-actions"><a class="ck-go" href="https://github.com/kotyzap/preflight/releases/latest" target="_blank" rel="noopener">Download Preflight ACAP App →</a><a class="acap-more" href="#scanner">How it works ↓</a></div>
       </div>    </div>
   </div>
 
@@ -564,10 +564,10 @@ ${bySection}
   It finds every camera on that network and answers one question per device: <em>will upgrade</em>,
   <em>will roll back</em>, or <em>cannot be determined</em>. For the ones that roll back, it names the
   applications responsible.</p>
-  <div class="avail"><p><strong>Ready — available on request as a beta.</strong> The ACAP is finished and
-  being handed out to a small number of installations first. Ask for it and you get the signed package to
-  install on one of your cameras. The command-line scanner performs the same checks today, without asking.</p>
-  <a class="ck-go" href="#beta" data-beta>Request the beta ACAP →</a></div>
+  <div class="avail"><p><strong>Released — signed by Axis, free to install.</strong> The camera it is
+  installed on is checked in full, free. The other cameras it scans are the paid part: a €5 licence key.
+  Without a key the scan stops at 5 cameras. ARTPEC-8/9 (aarch64) and ARTPEC-6/7 (armv7hf) packages.</p>
+  <a class="ck-go" href="https://github.com/kotyzap/preflight/releases/latest" target="_blank" rel="noopener">Download Preflight ACAP App →</a></div>
   <p>Read-only against every camera it touches: it reads the installed-application list and a handful of
   parameters, the same calls any Axis management tool makes. Nothing is written, nothing is installed on
   the cameras being checked, and no credentials leave your network. The app publishes the complete list
@@ -579,7 +579,7 @@ ${bySection}
   </div>
   <div class="ship">
     <div><span class="mono tagn">now</span><p>${data.rules.filter((r) => r.detection.status === 'verified').length} of the ${data.rules.length} rules are bench-verified and checked automatically. Command-line, macOS and Linux.</p></div>
-    <div><span class="mono tagn">beta · on request</span><p>The signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network. <a href="#beta" data-beta>Request access</a>.</p></div>
+    <div><span class="mono tagn">now · ACAP</span><p>The signed ACAP: install it on one camera you already have, and it checks the rest of the subnet from inside the network. <a href="https://github.com/kotyzap/preflight/releases/latest" target="_blank" rel="noopener">Download Preflight ACAP App</a>.</p></div>
     <div><span class="mono tagn">next</span><p>Signed downloads for macOS and Windows — nothing to install, no runtime to set up.</p></div>
   </div>
   </div>
@@ -836,7 +836,7 @@ ${bySection}
         '<p>What decides whether a camera rolls back is which applications are installed on it, and no '+
         'model list knows that. Preflight scans a fleet and answers it per camera &mdash; the applications '+
         'on each, which ones fail re-installation, which cameras revert. It runs from the command line '+
-        'today, and as a beta ACAP &mdash; available on request &mdash; that you install on a single camera to '+
+        'today, and as a signed ACAP you install on a single camera to '+
         'check the whole network.</p>'+
         '<a class="ck-go" href="#scanner">How the scanner works &rarr;</a></div>';
     }
