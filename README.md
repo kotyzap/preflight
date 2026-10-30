@@ -8,7 +8,7 @@
   <a href="https://preflight.4xs.dev/#check">🔎 Check a model</a> &nbsp;·&nbsp;
   <a href="https://preflight.4xs.dev/#tiers">📋 The rules</a> &nbsp;·&nbsp;
   <a href="https://preflight.4xs.dev/rules.json">📄 rules.json</a> &nbsp;·&nbsp;
-  <a href="https://preflight.4xs.dev/#scanner">📦 ACAP beta</a>
+  <a href="https://github.com/kotyzap/preflight/releases/latest">📦 Download the ACAP</a>
 </p>
 
 # Preflight for OS 13
@@ -24,14 +24,37 @@ Read-only. No agent, nothing installed on the camera.
 > application somebody installed years ago.
 
 > [!TIP]
-> **The Preflight ACAP is ready — available on request as a beta.** Install it on one camera and it
-> checks the whole network. [Request it on preflight.4xs.dev →](https://preflight.4xs.dev/#scanner)
+> **The Preflight ACAP is out — signed by Axis, free to install.** It checks the camera it is
+> installed on, in full, for free. The other cameras it scans on your network are the paid part:
+> a €5 licence key. [Download it from Releases →](https://github.com/kotyzap/preflight/releases/latest)
 
 | | Part | Where | Status |
 |:-:|---|---|---|
 | 📋 | Ruleset + public page | this repo · [preflight.4xs.dev](https://preflight.4xs.dev) | ✅ live |
 | ⌨️ | CLI scanner | [axis-cli](https://github.com/kotyzap/axis-cli) · `axis preflight` | ✅ free, open |
-| 📦 | ACAP — install on one camera, checks the network | private repo | 🧪 beta, on request |
+| 📦 | ACAP — install on one camera, checks the network | [Releases](https://github.com/kotyzap/preflight/releases/latest) · source private | ✅ 1.4.9, signed |
+
+## 📦 The ACAP
+
+Install one signed `.eap` on one camera — *Apps → Add app* in the camera's web interface. Open it,
+add credentials for the other cameras, press *Scan*.
+
+| | Free | Licence key — €5 |
+|---|---|---|
+| **This camera** (the one it is installed on) | ✅ in full — every finding, what to do about each, the report | ✅ |
+| **Scanned cameras** | model, AXIS OS, verdict and the *number* of findings · the scan stops at 5 cameras | ✅ every camera's findings, addresses, serials and the full report · the whole network (own /24 + extra ranges) |
+
+The key is bought on [Ko-fi](https://ko-fi.com/s/ce376bc80b) and arrives by email. It is checked
+offline, on the camera, by signature — no internet access needed. Paste it in, *Save*, then scan
+again to reach cameras past the free five.
+
+| File | For |
+|---|---|
+| `signed_Preflight_for_OS_13_<v>_aarch64.eap` | ARTPEC-8 / ARTPEC-9 and other 64-bit cameras |
+| `signed_Preflight_for_OS_13_<v>_armv7hf.eap` | ARTPEC-7 / ARTPEC-6 / i.MX6SX (32-bit) |
+
+Read-only throughout: three VAPIX GETs per camera and one ONVIF discovery probe. Nothing is written
+to any device.
 
 ## 🗂️ Layout
 
@@ -130,8 +153,8 @@ Carried in `rules.json` under `openQuestions` and rendered on the page.
 ## 🧭 Next
 
 Step 1, the CLI, is done and lives in [axis-cli](https://github.com/kotyzap/axis-cli) as
-`axis preflight`. Step 2, the ACAP, is ready and available on request as a beta. Its source is not public —
-[request it on preflight.4xs.dev](https://preflight.4xs.dev/#scanner).
+`axis preflight`. Step 2, the ACAP, is released as signed `.eap` files under
+[Releases](https://github.com/kotyzap/preflight/releases/latest). Its source is not public.
 
 ## ⚖️ Licence
 
